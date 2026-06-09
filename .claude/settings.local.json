@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(foreach \\($c in 'node','npm','git'\\) { $p = Get-Command $c -ErrorAction SilentlyContinue; if \\($p\\) { \"$c -> $\\(& $c --version\\)\" } else { \"$c -> NOT FOUND\" } }; '--- contenido del directorio ---'; $items = Get-ChildItem -Force -Name; if \\($items\\) { $items } else { '\\(vacío\\)' })"
+    ]
+  }
+}
