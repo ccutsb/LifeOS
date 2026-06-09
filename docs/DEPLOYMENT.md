@@ -50,16 +50,30 @@
 2. Toca **Compartir** (cuadro con flecha) → **Añadir a pantalla de inicio**.
 3. Ábrela desde el ícono: se ve a pantalla completa, sin barra de Safari.
 
-## 7. (Fase 4) Notificaciones push reales en iPhone
+## 7. Notificaciones push reales en iPhone (Fase 4)
 
 Requisitos: iOS **16.4+** y la PWA **instalada** en pantalla de inicio.
 
-1. Genera las claves VAPID:
-   ```bash
-   npx web-push generate-vapid-keys
-   ```
-   Pon la pública en `.env` (`VITE_VAPID_PUBLIC_KEY`) y guarda la privada como secreto en Supabase.
-2. Despliega la Edge Function `supabase/functions/send-reminders` y prográmala con un cron (Supabase **Database → Cron**) cada pocos minutos para enviar los recordatorios pendientes.
-3. En la app, el usuario concede permiso de notificaciones (solo funciona con la PWA instalada en iOS).
+**a) Genera las claves VAPID** (una sola vez):
+```bash
+npx web-push generate-vapid-keys
+```
+- Copia la **pública** a `.env` → `VITE_VAPID_PUBLIC_KEY=...` (y a las env vars de Vercel). Vuelve a desplegar el front.
+- Guarda la **privada** como secreto en Supabase (paso c).
 
-> Esta fase se implementa al final; el MVP funciona perfecto con recordatorios locales/in-app.
+**b) Carga la generación de recordatorios:** ejecuta `supabase/reminders.sql` en el SQL Editor.
+
+**c) Despliega la Edge Function** (necesitas la [CLI de Supabase](https://supabase.com/docs/guides/cli)):
+```bash
+supabase login
+supabase link --project-ref TU_PROJECT_REF
+supabase secrets set VAPID_PUBLIC_KEY=xxx VAPID_PRIVATE_KEY=yyy
+supabase functions deploy send-reminders
+```
+> `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` ya existen como secretos por defecto.
+
+**d) Agenda el cron:** en el Dashboard → **Database → Extensions** habilita `pg_cron` y `pg_net`, y corre los dos `cron.schedule(...)` que están comentados al final de `supabase/reminders.sql` (reemplaza `<PROJECT_REF>` y `<SERVICE_ROLE_KEY>`).
+
+**e) En la app:** instala la PWA en el iPhone (Safari → Compartir → Añadir a inicio), ábrela, ve a **Avisos** (campana del inicio) → **Activar avisos del sistema**. Acepta el permiso y listo.
+
+> Sin completar esta fase, la app ya funciona con la **bandeja de avisos in-app** (alertas automáticas de vencidas, evaluaciones y clases).

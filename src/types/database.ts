@@ -203,6 +203,18 @@ export interface SavingsGoal {
   updated_at: ISODateTime
 }
 
+export interface SavingsRule {
+  id: UUID
+  user_id: UUID
+  goal_id: UUID | null
+  kind: 'percent' | 'fixed'
+  value: number
+  trigger: 'on_income' | 'monthly'
+  is_active: boolean
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
 export interface CalendarEvent {
   id: UUID
   user_id: UUID

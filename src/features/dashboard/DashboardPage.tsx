@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarClock,
@@ -7,15 +8,21 @@ import {
   Zap,
   LifeBuoy,
   ChevronRight,
+  Bell,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { useCourses, useEvaluations, useSchedule } from '@/features/university/hooks'
 import { useTasks, useCompleteTask } from '@/features/tasks/hooks'
 import { useHabits, useHabitLogs } from '@/features/habits/hooks'
+import { useTransactions } from '@/features/finance/hooks'
 import { TaskRow } from '@/features/tasks/TaskRow'
+import { NotificationsSheet } from '@/features/notifications/NotificationsSheet'
+import { useAlerts } from '@/features/notifications/alerts'
 import { Card } from '@/components/ui/Card'
 import { greeting, longDate, dateKey, relativeDue, isPast, isToday } from '@/lib/dates'
+import { formatCLP } from '@/lib/money'
+import { Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export function DashboardPage() {
@@ -27,7 +34,10 @@ export function DashboardPage() {
   const { data: tasks = [] } = useTasks()
   const { data: habits = [] } = useHabits()
   const { data: habitLogs = [] } = useHabitLogs()
+  const { data: transactions = [] } = useTransactions()
   const complete = useCompleteTask()
+  const alerts = useAlerts()
+  const [showNotif, setShowNotif] = useState(false)
 
   const name =
     profile?.display_name ||
@@ -54,6 +64,13 @@ export function DashboardPage() {
     habitLogs.some((l) => l.habit_id === h.id && l.log_date === today && l.done),
   ).length
 
+  const ym = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const monthTx = transactions.filter((t) => t.occurred_on.startsWith(ym))
+  const income = monthTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+  const expense = monthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+  const balance = income - expense
+  const hasFinance = monthTx.length > 0
+
   return (
     <div className="animate-fade-in space-y-4">
       <header className="flex items-start justify-between">
@@ -68,6 +85,18 @@ export function DashboardPage() {
           <span className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-sm font-semibold text-warning">
             <Zap className="h-4 w-4" /> {profile?.points ?? 0}
           </span>
+          <button
+            onClick={() => setShowNotif(true)}
+            className="relative rounded-full p-2 text-muted active:bg-surface"
+            aria-label="Avisos"
+          >
+            <Bell className="h-5 w-5" />
+            {alerts.length > 0 && (
+              <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-danger text-[10px] font-bold text-white">
+                {alerts.length > 9 ? '9+' : alerts.length}
+              </span>
+            )}
+          </button>
           <button onClick={signOut} className="rounded-full p-2 text-muted active:bg-surface" aria-label="Cerrar sesión">
             <LogOut className="h-5 w-5" />
           </button>
@@ -171,6 +200,26 @@ export function DashboardPage() {
           </div>
         )}
       </SectionCard>
+
+      {/* Resumen financiero */}
+      <SectionCard title="Resumen financiero" icon={<Wallet className="h-4 w-4 text-success" />} to="/finanzas">
+        {!hasFinance ? (
+          <p className="py-2 text-sm text-muted">Registra ingresos y gastos para ver tu balance del mes.</p>
+        ) : (
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-xs text-muted">Balance del mes</p>
+              <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>{formatCLP(balance)}</p>
+            </div>
+            <div className="text-right text-xs">
+              <p className="text-success">+{formatCLP(income)}</p>
+              <p className="text-danger">−{formatCLP(expense)}</p>
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {showNotif && <NotificationsSheet onClose={() => setShowNotif(false)} />}
     </div>
   )
 }

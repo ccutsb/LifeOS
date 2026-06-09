@@ -42,6 +42,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        // Inyecta los manejadores de Web Push (push / notificationclick)
+        importScripts: ['/push-sw.js'],
         runtimeCaching: [
           {
             // Cachea respuestas de Supabase para lectura offline (NetworkFirst)

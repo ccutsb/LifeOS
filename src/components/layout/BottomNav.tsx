@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
-import { Home, GraduationCap, CheckSquare, Flame, LifeBuoy } from 'lucide-react'
+import { Home, GraduationCap, CheckSquare, Flame, LayoutGrid } from 'lucide-react'
 
 const items = [
   { to: '/', label: 'Inicio', icon: Home, end: true },
   { to: '/universidad', label: 'Ramos', icon: GraduationCap, end: false },
   { to: '/tareas', label: 'Tareas', icon: CheckSquare, end: false },
   { to: '/habitos', label: 'Hábitos', icon: Flame, end: false },
-  { to: '/crisis', label: 'Crisis', icon: LifeBuoy, end: false },
+  { to: '/mas', label: 'Más', icon: LayoutGrid, end: false },
 ]
 
 export function BottomNav() {
