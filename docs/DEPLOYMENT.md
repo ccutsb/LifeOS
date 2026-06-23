@@ -16,8 +16,9 @@
 3. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `accounts`, …).
 
 > **¿Ya tenías la base creada con una versión anterior?** Vuelve a correr `schema.sql` (es
-> idempotente) o, si prefieres una migración mínima para las billeteras/cuentas, ejecuta
-> [`supabase/wallets.sql`](../supabase/wallets.sql).
+> idempotente). Si prefieres migraciones mínimas: [`supabase/wallets.sql`](../supabase/wallets.sql)
+> (billeteras/cuentas) y [`supabase/points.sql`](../supabase/points.sql) (puntos por triggers,
+> server-authoritative — corrige el doble conteo de la gamificación).
 
 ## 3. Configurar Auth
 

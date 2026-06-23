@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { qk } from '@/lib/queryKeys'
 import { useInsert, useUpdate, useDelete, getUserId } from '@/lib/crud'
 import type { Account, Budget, SavingsGoal, SavingsRule, Transaction } from '@/types/database'
 
-const TX = ['transactions'] as const
-const ACCOUNTS = ['accounts'] as const
-const BUD = ['budgets'] as const
-const GOALS = ['savings_goals'] as const
-const RULES = ['savings_rules'] as const
+const TX = qk.transactions
+const ACCOUNTS = qk.accounts
+const BUD = qk.budgets
+const GOALS = qk.savingsGoals
+const RULES = qk.savingsRules
 
 export function useAccounts() {
   return useQuery({
@@ -78,6 +79,7 @@ export function useSavingsRules() {
 }
 
 export const useDeleteTransaction = () => useDelete('transactions', [TX])
+export const useUpdateTransaction = () => useUpdate<Transaction>('transactions', [TX])
 export const useCreateBudget = () => useInsert<Budget>('budgets', [BUD])
 export const useDeleteBudget = () => useDelete('budgets', [BUD])
 export const useDeleteGoal = () => useDelete('savings_goals', [GOALS, RULES])

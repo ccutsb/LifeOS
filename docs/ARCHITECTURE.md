@@ -26,7 +26,8 @@ App personal **anti-abandono**. El objetivo no es "tener muchas funciones", sino
 │  Supabase                                                  │
 │   - Auth (email+password, sesión persistente)             │
 │   - PostgreSQL + RLS (cada usuario ve solo lo suyo)        │
-│   - Realtime (sincronización entre dispositivos)          │
+│   - Triggers: puntos server-authoritative (anti-fraude)   │
+│   - Realtime (sync entre dispositivos) — PLANEADO, sin cablear │
 │   - Edge Functions (enviar Web Push según recordatorios)  │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -77,9 +78,18 @@ supabase/
 
 - TanStack Query **persiste el cache en `localStorage`** → al abrir, la app muestra el último estado **al instante** y luego sincroniza con Supabase.
 - El Service Worker cachea la app (offline) y las lecturas de Supabase (`NetworkFirst`).
-- Las **escrituras** requieren conexión (con *optimistic updates* para que se sientan inmediatas). Una cola de escritura offline queda como mejora futura.
+- Las **escrituras** requieren conexión. Las acciones de alta frecuencia (completar/reabrir tarea,
+  marcar/desmarcar hábito) usan *optimistic updates* con rollback ante fallo (`onMutate`/`onError`);
+  el resto invalida y refetchea. Una cola de escritura offline queda como mejora futura.
+- **Sincronización entre dispositivos:** hoy depende del refetch (no hay Realtime cableado ni
+  `refetchOnWindowFocus`); si editas en dos dispositivos puedes ver datos algo desactualizados hasta el
+  siguiente refetch. Realtime/window-focus está en el roadmap.
 
 ## Seguridad
 
 - **RLS activado en todas las tablas**: las políticas exigen `user_id = auth.uid()`. Aunque alguien tuviera la `anon key` (es pública por diseño), no puede leer datos de otro usuario.
 - Las claves de servicio (`service_role`) **solo** viven en Edge Functions, nunca en el frontend.
+- **Puntos server-authoritative:** la gamificación (puntos por tarea/hábito/pomodoro) la otorgan
+  **triggers en Postgres** (`supabase/points.sql`), no el cliente. Esto evita el doble conteo (re-marcar
+  una tarea) y la manipulación desde el navegador. El canje de recompensas es el único débito que aún
+  parte del cliente (acción explícita del usuario).

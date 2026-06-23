@@ -5,8 +5,6 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { toast } from '@/stores/toast'
-import { errorMessage } from '@/lib/errors'
 import { formatCLP } from '@/lib/money'
 import { shortDate } from '@/lib/dates'
 import {
@@ -18,14 +16,14 @@ import {
   useDeleteTransaction,
   useDeleteBudget,
   useDeleteGoal,
-  useContributeGoal,
 } from './hooks'
 import { TransactionFormSheet } from './TransactionFormSheet'
 import { GoalFormSheet } from './GoalFormSheet'
 import { BudgetFormSheet } from './BudgetFormSheet'
 import { AccountFormSheet } from './AccountFormSheet'
+import { ContributeGoalSheet } from './ContributeGoalSheet'
 import { accountIcon, accountBalance } from './accountKinds'
-import type { Account, SavingsGoal } from '@/types/database'
+import type { Account, SavingsGoal, Transaction } from '@/types/database'
 
 export function FinancePage() {
   const { data: transactions = [], isLoading } = useTransactions()
@@ -36,12 +34,13 @@ export function FinancePage() {
   const delTx = useDeleteTransaction()
   const delBudget = useDeleteBudget()
   const delGoal = useDeleteGoal()
-  const contribute = useContributeGoal()
 
   const [txType, setTxType] = useState<'income' | 'expense' | null>(null)
+  const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [goalForm, setGoalForm] = useState<{ goal?: SavingsGoal } | null>(null)
   const [showBudget, setShowBudget] = useState(false)
   const [accountForm, setAccountForm] = useState<{ account?: Account } | null>(null)
+  const [contributeGoal, setContributeGoal] = useState<SavingsGoal | null>(null)
 
   const now = new Date()
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -55,13 +54,7 @@ export function FinancePage() {
   const accountById = (id: string | null) => (id ? accounts.find((a) => a.id === id) : undefined)
   const totalWallets = accounts.reduce((s, a) => s + accountBalance(a, transactions), 0)
 
-  const onContribute = (goal: SavingsGoal) => {
-    const raw = window.prompt(`¿Cuánto abonar a "${goal.name}"? (CLP)`)
-    if (!raw) return
-    const amount = Number(raw)
-    if (!(amount > 0)) return
-    contribute.mutate({ goal, amount }, { onError: (e) => toast.error(errorMessage(e)) })
-  }
+  const onContribute = (goal: SavingsGoal) => setContributeGoal(goal)
 
   if (isLoading) {
     return (
@@ -262,18 +255,20 @@ export function FinancePage() {
             {transactions.slice(0, 20).map((t) => (
               <li key={t.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
                 <span className={`h-8 w-1 rounded-full ${t.type === 'income' ? 'bg-success' : 'bg-danger'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{t.description || t.category || (t.type === 'income' ? 'Ingreso' : 'Gasto')}</p>
-                  <p className="text-xs text-muted">
-                    {t.category ? `${t.category} · ` : ''}
-                    {accountById(t.account_id) ? `${accountById(t.account_id)!.name} · ` : ''}
-                    {shortDate(t.occurred_on)}
-                  </p>
-                </div>
-                <span className={`text-sm font-semibold ${t.type === 'income' ? 'text-success' : 'text-danger'}`}>
-                  {t.type === 'income' ? '+' : '−'}
-                  {formatCLP(Number(t.amount))}
-                </span>
+                <button onClick={() => setEditTx(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{t.description || t.category || (t.type === 'income' ? 'Ingreso' : 'Gasto')}</p>
+                    <p className="text-xs text-muted">
+                      {t.category ? `${t.category} · ` : ''}
+                      {accountById(t.account_id) ? `${accountById(t.account_id)!.name} · ` : ''}
+                      {shortDate(t.occurred_on)}
+                    </p>
+                  </div>
+                  <span className={`text-sm font-semibold ${t.type === 'income' ? 'text-success' : 'text-danger'}`}>
+                    {t.type === 'income' ? '+' : '−'}
+                    {formatCLP(Number(t.amount))}
+                  </span>
+                </button>
                 <button onClick={() => delTx.mutate(t.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -284,6 +279,10 @@ export function FinancePage() {
       </section>
 
       {txType && <TransactionFormSheet initialType={txType} onClose={() => setTxType(null)} />}
+      {editTx && (
+        <TransactionFormSheet initialType={editTx.type} transaction={editTx} onClose={() => setEditTx(null)} />
+      )}
+      {contributeGoal && <ContributeGoalSheet goal={contributeGoal} onClose={() => setContributeGoal(null)} />}
       {goalForm && (
         <GoalFormSheet
           goal={goalForm.goal}

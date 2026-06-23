@@ -4,7 +4,7 @@ import { qk } from '@/lib/queryKeys'
 import { useInsert, useDelete, getUserId } from '@/lib/crud'
 import type { Reward } from '@/types/database'
 
-const REWARDS_KEY = ['rewards'] as const
+const REWARDS_KEY = qk.rewards
 
 export function useRewards() {
   return useQuery({

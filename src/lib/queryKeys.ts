@@ -9,4 +9,11 @@ export const qk = {
   habitLogs: ['habit_logs'] as const,
   notifications: ['notifications'] as const,
   transactions: ['transactions'] as const,
+  accounts: ['accounts'] as const,
+  budgets: ['budgets'] as const,
+  savingsGoals: ['savings_goals'] as const,
+  savingsRules: ['savings_rules'] as const,
+  focusSessions: ['focus_sessions'] as const,
+  rewards: ['rewards'] as const,
+  weeklyReview: (weekStart: string) => ['weekly_review', weekStart] as const,
 }

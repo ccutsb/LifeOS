@@ -9,7 +9,8 @@ import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
 import { formatCLP } from '@/lib/money'
 import { dateKey } from '@/lib/dates'
-import { useCreateTransaction, useAccounts } from './hooks'
+import { useCreateTransaction, useUpdateTransaction, useAccounts } from './hooks'
+import type { Transaction } from '@/types/database'
 
 const EXPENSE_CATS = ['Comida', 'Transporte', 'Universidad', 'Arriendo', 'Servicios', 'Ocio', 'Salud', 'Otro']
 const INCOME_CATS = ['Sueldo', 'Beca', 'Freelance', 'Otro']
@@ -17,38 +18,50 @@ const INCOME_CATS = ['Sueldo', 'Beca', 'Freelance', 'Otro']
 export function TransactionFormSheet({
   initialType,
   initialAccountId,
+  transaction,
   onClose,
 }: {
   initialType: 'income' | 'expense'
   initialAccountId?: string
+  transaction?: Transaction
   onClose: () => void
 }) {
   const create = useCreateTransaction()
+  const update = useUpdateTransaction()
   const { data: accounts = [] } = useAccounts()
-  const [type, setType] = useState<'income' | 'expense'>(initialType)
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('')
-  const [description, setDescription] = useState('')
-  const [date, setDate] = useState(dateKey())
-  const [accountId, setAccountId] = useState(initialAccountId ?? '')
+  const editing = Boolean(transaction)
+
+  const [type, setType] = useState<'income' | 'expense'>(transaction?.type ?? initialType)
+  const [amount, setAmount] = useState(transaction ? String(transaction.amount) : '')
+  const [category, setCategory] = useState(transaction?.category ?? '')
+  const [description, setDescription] = useState(transaction?.description ?? '')
+  const [date, setDate] = useState(transaction?.occurred_on ?? dateKey())
+  const [accountId, setAccountId] = useState(transaction?.account_id ?? initialAccountId ?? '')
 
   const cats = type === 'income' ? INCOME_CATS : EXPENSE_CATS
   const amountNum = Number(amount) || 0
+  const pending = create.isPending || update.isPending
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (amountNum <= 0) return
+    const values = {
+      type,
+      amount: amountNum,
+      category: category || null,
+      description: description.trim() || null,
+      occurred_on: date,
+      account_id: accountId || null,
+    }
     try {
-      const { autoSaved } = await create.mutateAsync({
-        type,
-        amount: amountNum,
-        category: category || null,
-        description: description.trim() || null,
-        occurred_on: date,
-        account_id: accountId || null,
-      })
-      toast.success(type === 'income' ? 'Ingreso registrado' : 'Gasto registrado')
-      if (autoSaved > 0) toast.success(`Ahorro automático: ${formatCLP(autoSaved)} 💰`)
+      if (editing && transaction) {
+        await update.mutateAsync({ id: transaction.id, values })
+        toast.success('Movimiento actualizado')
+      } else {
+        const { autoSaved } = await create.mutateAsync(values)
+        toast.success(type === 'income' ? 'Ingreso registrado' : 'Gasto registrado')
+        if (autoSaved > 0) toast.success(`Ahorro automático: ${formatCLP(autoSaved)} 💰`)
+      }
       onClose()
     } catch (err) {
       toast.error(errorMessage(err))
@@ -56,7 +69,7 @@ export function TransactionFormSheet({
   }
 
   return (
-    <Sheet open onClose={onClose} title="Nuevo movimiento">
+    <Sheet open onClose={onClose} title={editing ? 'Editar movimiento' : 'Nuevo movimiento'}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
           {(['expense', 'income'] as const).map((t) => (
@@ -125,8 +138,8 @@ export function TransactionFormSheet({
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" />
         </Field>
 
-        <Button type="submit" fullWidth disabled={create.isPending} className="mt-1">
-          {create.isPending ? 'Guardando…' : 'Registrar'}
+        <Button type="submit" fullWidth disabled={pending} className="mt-1">
+          {pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar'}
         </Button>
       </form>
     </Sheet>
