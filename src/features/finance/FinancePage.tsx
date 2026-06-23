@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,7 @@ import { formatCLP } from '@/lib/money'
 import { shortDate } from '@/lib/dates'
 import {
   useTransactions,
+  useAccounts,
   useBudgets,
   useSavingsGoals,
   useSavingsRules,
@@ -22,10 +23,13 @@ import {
 import { TransactionFormSheet } from './TransactionFormSheet'
 import { GoalFormSheet } from './GoalFormSheet'
 import { BudgetFormSheet } from './BudgetFormSheet'
-import type { SavingsGoal } from '@/types/database'
+import { AccountFormSheet } from './AccountFormSheet'
+import { accountIcon, accountBalance } from './accountKinds'
+import type { Account, SavingsGoal } from '@/types/database'
 
 export function FinancePage() {
   const { data: transactions = [], isLoading } = useTransactions()
+  const { data: accounts = [] } = useAccounts()
   const { data: budgets = [] } = useBudgets()
   const { data: goals = [] } = useSavingsGoals()
   const { data: rules = [] } = useSavingsRules()
@@ -37,6 +41,7 @@ export function FinancePage() {
   const [txType, setTxType] = useState<'income' | 'expense' | null>(null)
   const [goalForm, setGoalForm] = useState<{ goal?: SavingsGoal } | null>(null)
   const [showBudget, setShowBudget] = useState(false)
+  const [accountForm, setAccountForm] = useState<{ account?: Account } | null>(null)
 
   const now = new Date()
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -47,6 +52,8 @@ export function FinancePage() {
   const spentByCat = (cat: string) =>
     monthTx.filter((t) => t.type === 'expense' && t.category === cat).reduce((s, t) => s + Number(t.amount), 0)
   const autoPercentOf = (goalId: string) => Number(rules.find((r) => r.goal_id === goalId)?.value ?? 0)
+  const accountById = (id: string | null) => (id ? accounts.find((a) => a.id === id) : undefined)
+  const totalWallets = accounts.reduce((s, a) => s + accountBalance(a, transactions), 0)
 
   const onContribute = (goal: SavingsGoal) => {
     const raw = window.prompt(`¿Cuánto abonar a "${goal.name}"? (CLP)`)
@@ -97,6 +104,56 @@ export function FinancePage() {
           </Button>
         </div>
       </Card>
+
+      {/* Cuentas / Billeteras */}
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-semibold">
+            <Wallet className="h-4 w-4 text-success" /> Cuentas y billeteras
+          </h3>
+          <button onClick={() => setAccountForm({})} className="flex items-center gap-1 text-sm text-brand">
+            <Plus className="h-4 w-4" /> Nueva
+          </button>
+        </div>
+        {accounts.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-5 text-center text-sm text-muted">
+            Crea tus cuentas (MercadoPago, Banco Ripley, Scotiabank, Pluxee beca…) para ordenar de dónde sale y entra
+            cada peso.
+          </p>
+        ) : (
+          <>
+            <ul className="grid grid-cols-2 gap-2.5">
+              {accounts.map((a) => {
+                const bal = accountBalance(a, transactions)
+                const Icon = accountIcon(a.kind)
+                return (
+                  <li key={a.id}>
+                    <button
+                      onClick={() => setAccountForm({ account: a })}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left active:bg-surface-2"
+                    >
+                      <span
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+                        style={{ backgroundColor: `${a.color}22` }}
+                      >
+                        <Icon className="h-5 w-5" style={{ color: a.color }} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{a.name}</p>
+                        <p className={`text-sm font-semibold ${bal < 0 ? 'text-danger' : 'text-text'}`}>{formatCLP(bal)}</p>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm">
+              <span className="text-muted">Total disponible</span>
+              <span className={`font-bold ${totalWallets < 0 ? 'text-danger' : 'text-success'}`}>{formatCLP(totalWallets)}</span>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Metas */}
       <section>
@@ -209,6 +266,7 @@ export function FinancePage() {
                   <p className="truncate text-sm font-medium">{t.description || t.category || (t.type === 'income' ? 'Ingreso' : 'Gasto')}</p>
                   <p className="text-xs text-muted">
                     {t.category ? `${t.category} · ` : ''}
+                    {accountById(t.account_id) ? `${accountById(t.account_id)!.name} · ` : ''}
                     {shortDate(t.occurred_on)}
                   </p>
                 </div>
@@ -234,6 +292,7 @@ export function FinancePage() {
         />
       )}
       {showBudget && <BudgetFormSheet onClose={() => setShowBudget(false)} />}
+      {accountForm && <AccountFormSheet account={accountForm.account} onClose={() => setAccountForm(null)} />}
     </div>
   )
 }

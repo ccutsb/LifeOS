@@ -24,9 +24,16 @@ self.addEventListener('notificationclick', (event) => {
   const url = (event.notification.data && event.notification.data.url) || '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // Si ya hay una ventana abierta, enfócala (navigate puede fallar en iOS).
       for (const client of list) {
         if ('focus' in client) {
-          client.navigate(url)
+          if ('navigate' in client) {
+            try {
+              client.navigate(url)
+            } catch (e) {
+              /* iOS a veces no permite navigate: solo enfocamos */
+            }
+          }
           return client.focus()
         }
       }

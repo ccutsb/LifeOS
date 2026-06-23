@@ -13,7 +13,11 @@
 
 1. En el Dashboard de Supabase → **SQL Editor** → **New query**.
 2. Pega el contenido de [`supabase/schema.sql`](../supabase/schema.sql) y pulsa **Run**.
-3. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, …).
+3. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `accounts`, …).
+
+> **¿Ya tenías la base creada con una versión anterior?** Vuelve a correr `schema.sql` (es
+> idempotente) o, si prefieres una migración mínima para las billeteras/cuentas, ejecuta
+> [`supabase/wallets.sql`](../supabase/wallets.sql).
 
 ## 3. Configurar Auth
 
@@ -53,6 +57,11 @@
 ## 7. Notificaciones push reales en iPhone (Fase 4)
 
 Requisitos: iOS **16.4+** y la PWA **instalada** en pantalla de inicio.
+
+> **Antes de configurar el push real**, ya puedes activar las notificaciones del día: abre la PWA
+> instalada → campana de **Avisos** → **Activar** y luego **Probar** (te llegará una notificación de
+> prueba al instante). Estos avisos locales funcionan estando la app abierta. Para que lleguen con la
+> app **cerrada**, completa los pasos a–e de abajo.
 
 **a) Genera las claves VAPID** (una sola vez):
 ```bash
