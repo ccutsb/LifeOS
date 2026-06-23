@@ -9,18 +9,28 @@ import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
 import { formatCLP } from '@/lib/money'
 import { dateKey } from '@/lib/dates'
-import { useCreateTransaction } from './hooks'
+import { useCreateTransaction, useAccounts } from './hooks'
 
 const EXPENSE_CATS = ['Comida', 'Transporte', 'Universidad', 'Arriendo', 'Servicios', 'Ocio', 'Salud', 'Otro']
 const INCOME_CATS = ['Sueldo', 'Beca', 'Freelance', 'Otro']
 
-export function TransactionFormSheet({ initialType, onClose }: { initialType: 'income' | 'expense'; onClose: () => void }) {
+export function TransactionFormSheet({
+  initialType,
+  initialAccountId,
+  onClose,
+}: {
+  initialType: 'income' | 'expense'
+  initialAccountId?: string
+  onClose: () => void
+}) {
   const create = useCreateTransaction()
+  const { data: accounts = [] } = useAccounts()
   const [type, setType] = useState<'income' | 'expense'>(initialType)
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(dateKey())
+  const [accountId, setAccountId] = useState(initialAccountId ?? '')
 
   const cats = type === 'income' ? INCOME_CATS : EXPENSE_CATS
   const amountNum = Number(amount) || 0
@@ -35,6 +45,7 @@ export function TransactionFormSheet({ initialType, onClose }: { initialType: 'i
         category: category || null,
         description: description.trim() || null,
         occurred_on: date,
+        account_id: accountId || null,
       })
       toast.success(type === 'income' ? 'Ingreso registrado' : 'Gasto registrado')
       if (autoSaved > 0) toast.success(`Ahorro automático: ${formatCLP(autoSaved)} 💰`)
@@ -74,6 +85,24 @@ export function TransactionFormSheet({ initialType, onClose }: { initialType: 'i
             required
           />
           {amountNum > 0 && <span className="mt-1 block text-xs text-muted">{formatCLP(amountNum)}</span>}
+        </Field>
+
+        <Field label={type === 'income' ? '¿A qué cuenta entró?' : '¿De qué cuenta salió?'}>
+          {accounts.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted">
+              Aún no tienes cuentas. Crea una billetera (MercadoPago, banco, beca…) desde Finanzas para asignar tus
+              movimientos.
+            </p>
+          ) : (
+            <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">Sin cuenta</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          )}
         </Field>
 
         <div className="grid grid-cols-2 gap-3">

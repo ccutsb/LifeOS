@@ -1,12 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useInsert, useDelete, getUserId } from '@/lib/crud'
-import type { Budget, SavingsGoal, SavingsRule, Transaction } from '@/types/database'
+import { useInsert, useUpdate, useDelete, getUserId } from '@/lib/crud'
+import type { Account, Budget, SavingsGoal, SavingsRule, Transaction } from '@/types/database'
 
 const TX = ['transactions'] as const
+const ACCOUNTS = ['accounts'] as const
 const BUD = ['budgets'] as const
 const GOALS = ['savings_goals'] as const
 const RULES = ['savings_rules'] as const
+
+export function useAccounts() {
+  return useQuery({
+    queryKey: ACCOUNTS,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('archived', false)
+        .order('sort_order')
+        .order('created_at')
+      if (error) throw error
+      return (data ?? []) as Account[]
+    },
+  })
+}
+
+export const useCreateAccount = () => useInsert<Account>('accounts', [ACCOUNTS])
+export const useUpdateAccount = () => useUpdate<Account>('accounts', [ACCOUNTS])
+export const useDeleteAccount = () => useDelete('accounts', [ACCOUNTS, TX])
 
 export function useTransactions() {
   return useQuery({
@@ -71,6 +92,7 @@ export function useCreateTransaction() {
       category?: string | null
       description?: string | null
       occurred_on: string
+      account_id?: string | null
     }) => {
       const user_id = await getUserId()
       const { error } = await supabase.from('transactions').insert({ ...values, user_id })

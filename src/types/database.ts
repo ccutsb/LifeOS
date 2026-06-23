@@ -13,6 +13,7 @@ export type EvaluationType =
 export type HabitType = 'sleep' | 'attendance' | 'study' | 'exercise' | 'food' | 'custom'
 export type Modality = 'presencial' | 'online' | 'hibrido'
 export type TransactionType = 'income' | 'expense'
+export type AccountKind = 'bank' | 'wallet' | 'cash' | 'benefit' | 'credit' | 'savings' | 'other'
 
 export interface Profile {
   id: UUID
@@ -165,6 +166,20 @@ export interface Reward {
   updated_at: ISODateTime
 }
 
+export interface Account {
+  id: UUID
+  user_id: UUID
+  name: string
+  kind: AccountKind
+  color: string
+  icon: string | null
+  initial_balance: number
+  archived: boolean
+  sort_order: number
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
 export interface Transaction {
   id: UUID
   user_id: UUID
@@ -174,6 +189,7 @@ export interface Transaction {
   description: string | null
   occurred_on: ISODate
   account: string | null
+  account_id: UUID | null
   is_recurring: boolean
   recurrence: Record<string, unknown> | null
   created_at: ISODateTime
