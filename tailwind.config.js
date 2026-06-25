@@ -5,24 +5,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta oscura minimalista. `bg` = fondo, `surface` = tarjetas.
-        bg: '#0b0f17',
-        surface: '#121826',
-        'surface-2': '#1a2234',
-        border: '#243049',
-        muted: '#8b97ad',
-        text: '#e6eaf2',
+        // Paleta dirigida por variables CSS (ver src/styles/index.css).
+        // Cada token cambia con el tema claro/oscuro; el formato rgb(var / alpha)
+        // mantiene funcionando las utilidades de opacidad (bg-brand/15, etc.).
+        bg: 'rgb(var(--c-bg) / <alpha-value>)',
+        surface: 'rgb(var(--c-surface) / <alpha-value>)',
+        'surface-2': 'rgb(var(--c-surface-2) / <alpha-value>)',
+        border: 'rgb(var(--c-border) / <alpha-value>)',
+        muted: 'rgb(var(--c-muted) / <alpha-value>)',
+        text: 'rgb(var(--c-text) / <alpha-value>)',
         // Acentos semánticos
-        brand: '#6366f1', // indigo
-        success: '#22c55e',
-        warning: '#f59e0b',
-        danger: '#ef4444',
-        info: '#06b6d4',
+        brand: 'rgb(var(--c-brand) / <alpha-value>)',
+        'brand-2': 'rgb(var(--c-brand-2) / <alpha-value>)', // fin del degradado de marca
+        success: 'rgb(var(--c-success) / <alpha-value>)',
+        warning: 'rgb(var(--c-warning) / <alpha-value>)',
+        danger: 'rgb(var(--c-danger) / <alpha-value>)',
+        info: 'rgb(var(--c-info) / <alpha-value>)',
+        energy: 'rgb(var(--c-energy) / <alpha-value>)', // acento cálido motivacional
         // Cuadrantes Eisenhower
-        'q-do': '#ef4444', // urgente + importante
-        'q-schedule': '#6366f1', // importante
-        'q-delegate': '#f59e0b', // urgente
-        'q-eliminate': '#64748b', // ni uno ni otro
+        'q-do': 'rgb(var(--c-q-do) / <alpha-value>)',
+        'q-schedule': 'rgb(var(--c-q-schedule) / <alpha-value>)',
+        'q-delegate': 'rgb(var(--c-q-delegate) / <alpha-value>)',
+        'q-eliminate': 'rgb(var(--c-q-eliminate) / <alpha-value>)',
       },
       fontFamily: {
         sans: [
@@ -46,7 +50,7 @@ export default {
         'safe-r': 'env(safe-area-inset-right)',
       },
       boxShadow: {
-        card: '0 1px 0 0 rgba(255,255,255,0.03) inset, 0 8px 24px -12px rgba(0,0,0,0.6)',
+        card: 'var(--shadow-card)',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
