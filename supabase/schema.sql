@@ -245,6 +245,78 @@ create trigger trg_apply_points
   after insert on public.points_ledger
   for each row execute function public.apply_points();
 
+-- ── Gamificación server-authoritative (los puntos los otorga la BD) ───────
+-- Evita doble conteo (re-marcar una tarea) y manipulación desde el cliente.
+-- Tarea: +10 al completar, −10 al reabrir (solo en transición real de estado).
+create or replace function public.points_on_task_status()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'done' and old.status is distinct from 'done' then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, 10, 'Tarea completada', 'task', new.id);
+  elsif old.status = 'done' and new.status is distinct from 'done' then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, -10, 'Tarea reabierta', 'task', new.id);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_points_task on public.tasks;
+create trigger trg_points_task
+  after update of status on public.tasks
+  for each row execute function public.points_on_task_status();
+
+-- Hábito: +5 al registrar cumplido, −5 al borrar el registro.
+create or replace function public.points_on_habit_log_insert()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.done then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, 5, 'Hábito cumplido', 'habit', new.habit_id);
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.points_on_habit_log_delete()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if old.done then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (old.user_id, -5, 'Hábito desmarcado', 'habit', old.habit_id);
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists trg_points_habit_log_ins on public.habit_logs;
+create trigger trg_points_habit_log_ins
+  after insert on public.habit_logs
+  for each row execute function public.points_on_habit_log_insert();
+
+drop trigger if exists trg_points_habit_log_del on public.habit_logs;
+create trigger trg_points_habit_log_del
+  after delete on public.habit_logs
+  for each row execute function public.points_on_habit_log_delete();
+
+-- Enfoque: +15 al completar una sesión de foco.
+create or replace function public.points_on_focus_session()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.kind = 'focus' and new.completed then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, 15, 'Pomodoro completado', 'focus', new.id);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_points_focus on public.focus_sessions;
+create trigger trg_points_focus
+  after insert on public.focus_sessions
+  for each row execute function public.points_on_focus_session();
+
 -- ╔══════════════════════════════════════════════════════════════════════╗
 -- ║  FINANZAS                                                              ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
@@ -319,6 +391,28 @@ create table if not exists public.savings_rules (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- ╔══════════════════════════════════════════════════════════════════════╗
+-- ║  OBJETIVOS DE VIDA (capa superior que conecta tareas y hábitos)        ║
+-- ╚══════════════════════════════════════════════════════════════════════╝
+create table if not exists public.life_goals (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  title       text not null,
+  motivation  text,                 -- el "por qué" (motivación)
+  area        text not null default 'personal'
+              check (area in ('academico','salud','finanzas','carrera','personal','social','otro')),
+  color       text not null default '#6366f1',
+  target_date date,
+  status      text not null default 'active' check (status in ('active','done','archived')),
+  sort_order  int not null default 0,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Vincular tareas y hábitos a un objetivo (opcional). Idempotente para bases existentes.
+alter table public.tasks  add column if not exists goal_id uuid references public.life_goals(id) on delete set null;
+alter table public.habits add column if not exists goal_id uuid references public.life_goals(id) on delete set null;
 
 -- ╔══════════════════════════════════════════════════════════════════════╗
 -- ║  CALENDARIO / RECORDATORIOS / NOTIFICACIONES                          ║
@@ -399,6 +493,9 @@ create index if not exists idx_evaluations_course    on public.evaluations(cours
 create index if not exists idx_evaluations_user_due  on public.evaluations(user_id, due_at);
 create index if not exists idx_tasks_user_status     on public.tasks(user_id, status);
 create index if not exists idx_tasks_user_due        on public.tasks(user_id, due_at);
+create index if not exists idx_tasks_goal            on public.tasks(goal_id);
+create index if not exists idx_habits_goal           on public.habits(goal_id);
+create index if not exists idx_life_goals_user       on public.life_goals(user_id) where status <> 'archived';
 create index if not exists idx_habit_logs_habit_date on public.habit_logs(habit_id, log_date);
 create index if not exists idx_focus_user            on public.focus_sessions(user_id, started_at);
 create index if not exists idx_transactions_user_date on public.transactions(user_id, occurred_on);
@@ -442,7 +539,7 @@ begin
   foreach t in array array[
     'profiles','semesters','courses','course_schedule','evaluations','tasks',
     'habits','rewards','accounts','transactions','budgets','savings_goals','savings_rules',
-    'events','weekly_reviews'
+    'life_goals','events','weekly_reviews'
   ] loop
     execute format('drop trigger if exists trg_%1$s_updated on public.%1$I;', t);
     execute format(
@@ -472,7 +569,7 @@ begin
     'semesters','courses','course_schedule','evaluations','tasks',
     'habits','habit_logs','focus_sessions','points_ledger','rewards',
     'accounts','transactions','budgets','savings_goals','savings_rules',
-    'events','reminders','push_subscriptions','notifications','weekly_reviews'
+    'life_goals','events','reminders','push_subscriptions','notifications','weekly_reviews'
   ] loop
     execute format('alter table public.%I enable row level security;', t);
     execute format('drop policy if exists %1$s_select on public.%1$I;', t);

@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { qk } from '@/lib/queryKeys'
 import { getUserId } from '@/lib/crud'
 import type { WeeklyReview } from '@/types/database'
 
 export function useWeeklyReview(weekStart: string) {
   return useQuery({
-    queryKey: ['weekly_review', weekStart],
+    queryKey: qk.weeklyReview(weekStart),
     queryFn: async (): Promise<WeeklyReview | null> => {
       const { data, error } = await supabase
         .from('weekly_reviews')
@@ -34,6 +35,6 @@ export function useSaveReview() {
         .upsert({ ...values, user_id }, { onConflict: 'user_id,week_start' })
       if (error) throw error
     },
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['weekly_review', vars.week_start] }),
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: qk.weeklyReview(vars.week_start) }),
   })
 }

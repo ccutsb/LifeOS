@@ -1,7 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { dateKey } from '@/lib/dates'
 import { notifPermission, showLocalNotification } from '@/lib/notify'
+import { useHabits, useHabitLogs } from '@/features/habits/hooks'
 import { useAlerts, type Alert } from './alerts'
+
+interface Notifiable {
+  id: string
+  title: string
+  body?: string
+  to: string
+}
 
 const STORE_KEY = 'lifeos:notified'
 
@@ -30,10 +38,40 @@ function writeSent(map: Record<string, string>) {
  */
 export function useLocalReminders() {
   const alerts = useAlerts()
+  const { data: habits = [] } = useHabits()
+  const { data: habitLogs = [] } = useHabitLogs()
+
+  // Refs para que el intervalo lea siempre los datos más recientes sin re-suscribirse.
   const alertsRef = useRef<Alert[]>(alerts)
   alertsRef.current = alerts
+  const habitsRef = useRef(habits)
+  habitsRef.current = habits
+  const logsRef = useRef(habitLogs)
+  logsRef.current = habitLogs
 
   useEffect(() => {
+    // Hábitos cuyo recordatorio ya tocó hoy, del día correcto y aún sin cumplir.
+    const dueHabitReminders = (): Notifiable[] => {
+      const now = new Date()
+      const today = dateKey(now)
+      const weekday = now.getDay()
+      const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      return habitsRef.current
+        .filter((h) => {
+          if (!h.reminder_time) return false
+          if (!h.weekdays.includes(weekday)) return false
+          if (h.reminder_time.slice(0, 5) > nowHM) return false // aún no es la hora
+          const doneToday = logsRef.current.some((l) => l.habit_id === h.id && l.log_date === today && l.done)
+          return !doneToday
+        })
+        .map((h) => ({
+          id: `habit-${h.id}`,
+          title: `Hábito: ${h.name}`,
+          body: h.cue ?? 'Es momento de tu hábito',
+          to: '/habitos',
+        }))
+    }
+
     const fire = async () => {
       if (notifPermission() !== 'granted') return
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
@@ -42,8 +80,12 @@ export function useLocalReminders() {
       const sent = readSent()
       let changed = false
 
-      // Solo avisos relevantes (alta/media prioridad) para no saturar.
-      for (const a of alertsRef.current.filter((x) => x.severity !== 'low')) {
+      // Avisos relevantes (alta/media prioridad) + recordatorios de hábitos vencidos hoy.
+      const notifiables: Notifiable[] = [
+        ...alertsRef.current.filter((x) => x.severity !== 'low'),
+        ...dueHabitReminders(),
+      ]
+      for (const a of notifiables) {
         if (sent[a.id] === today) continue
         const ok = await showLocalNotification(a.title, { body: a.body, tag: a.id, url: a.to })
         if (ok) {

@@ -16,8 +16,10 @@
 3. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `accounts`, …).
 
 > **¿Ya tenías la base creada con una versión anterior?** Vuelve a correr `schema.sql` (es
-> idempotente) o, si prefieres una migración mínima para las billeteras/cuentas, ejecuta
-> [`supabase/wallets.sql`](../supabase/wallets.sql).
+> idempotente). Si prefieres migraciones mínimas: [`supabase/wallets.sql`](../supabase/wallets.sql)
+> (billeteras/cuentas), [`supabase/points.sql`](../supabase/points.sql) (puntos por triggers,
+> server-authoritative — corrige el doble conteo) y [`supabase/objectives.sql`](../supabase/objectives.sql)
+> (objetivos de vida + vínculo de tareas/hábitos).
 
 ## 3. Configurar Auth
 

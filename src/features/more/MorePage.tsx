@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { Timer, Gift, Wallet, Calendar, ClipboardCheck, LifeBuoy, LogOut } from 'lucide-react'
+import { Timer, Gift, Wallet, Calendar, ClipboardCheck, LifeBuoy, LogOut, Target } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useAuth } from '@/features/auth/AuthProvider'
 
 const tiles = [
+  { to: '/objetivos', label: 'Objetivos', hint: 'Tu norte', icon: Target, color: '#6366f1' },
   { to: '/enfoque', label: 'Enfoque', hint: 'Pomodoro', icon: Timer, color: '#6366f1' },
   { to: '/recompensas', label: 'Recompensas', hint: 'Tus puntos', icon: Gift, color: '#f59e0b' },
   { to: '/finanzas', label: 'Finanzas', hint: 'Plata y ahorro', icon: Wallet, color: '#22c55e' },

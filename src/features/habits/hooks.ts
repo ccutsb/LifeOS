@@ -40,7 +40,11 @@ export const useCreateHabit = () => useInsert<Habit>('habits', [qk.habits])
 export const useUpdateHabit = () => useUpdate<Habit>('habits', [qk.habits])
 export const useDeleteHabit = () => useDelete('habits', [qk.habits, qk.habitLogs])
 
-/** Marca/desmarca un hábito en una fecha; ajusta puntos en consecuencia. */
+/**
+ * Marca/desmarca un hábito en una fecha. Los puntos los otorga la BD (triggers
+ * en habit_logs), así que aquí solo escribimos el registro. Update optimista
+ * para que el toque se sienta instantáneo, con rollback si falla.
+ */
 export function useToggleHabit() {
   const qc = useQueryClient()
   return useMutation({
@@ -57,29 +61,41 @@ export function useToggleHabit() {
     }) => {
       const user_id = await getUserId()
       if (currentlyDone) {
-        await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('log_date', date)
-        await supabase.from('points_ledger').insert({
-          user_id,
-          delta: -POINTS_PER_HABIT,
-          reason: 'Hábito desmarcado',
-          source: 'habit',
-          source_id: habitId,
-        })
+        const { error } = await supabase.from('habit_logs').delete().eq('habit_id', habitId).eq('log_date', date)
+        if (error) throw error
       } else {
         const { error } = await supabase
           .from('habit_logs')
           .insert({ user_id, habit_id: habitId, log_date: date, done: true, value })
         if (error) throw error
-        await supabase.from('points_ledger').insert({
-          user_id,
-          delta: POINTS_PER_HABIT,
-          reason: 'Hábito cumplido',
-          source: 'habit',
-          source_id: habitId,
-        })
       }
     },
-    onSuccess: () => {
+    onMutate: async ({ habitId, date, currentlyDone, value = 1 }) => {
+      await qc.cancelQueries({ queryKey: qk.habitLogs })
+      const previous = qc.getQueryData<HabitLog[]>(qk.habitLogs)
+      qc.setQueryData<HabitLog[]>(qk.habitLogs, (old) => {
+        const logs = old ?? []
+        if (currentlyDone) {
+          return logs.filter((l) => !(l.habit_id === habitId && l.log_date === date))
+        }
+        const optimistic: HabitLog = {
+          id: `optimistic-${habitId}-${date}`,
+          user_id: '',
+          habit_id: habitId,
+          log_date: date,
+          value,
+          done: true,
+          note: null,
+          created_at: new Date().toISOString(),
+        }
+        return [...logs, optimistic]
+      })
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(qk.habitLogs, ctx.previous)
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.habitLogs })
       qc.invalidateQueries({ queryKey: qk.profile })
     },

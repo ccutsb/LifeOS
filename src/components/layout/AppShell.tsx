@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 import { useLocalReminders } from '@/features/notifications/useLocalReminders'
+import { OnboardingOverlay } from '@/features/onboarding/OnboardingOverlay'
 
 export function AppShell() {
   // Dispara avisos locales en el dispositivo para entregas/evaluaciones del día.
@@ -13,6 +14,7 @@ export function AppShell() {
         </div>
       </main>
       <BottomNav />
+      <OnboardingOverlay />
     </div>
   )
 }
