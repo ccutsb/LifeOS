@@ -18,6 +18,7 @@ const RewardsPage = lazy(() => import('@/features/rewards/RewardsPage').then((m)
 const FinancePage = lazy(() => import('@/features/finance/FinancePage').then((m) => ({ default: m.FinancePage })))
 const CalendarPage = lazy(() => import('@/features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })))
 const ReviewPage = lazy(() => import('@/features/review/ReviewPage').then((m) => ({ default: m.ReviewPage })))
+const ObjectivesPage = lazy(() => import('@/features/objectives/ObjectivesPage').then((m) => ({ default: m.ObjectivesPage })))
 
 /** Envuelve una página perezosa con un fallback de carga centrado. */
 function Lazy({ children }: { children: ReactNode }) {
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
       { path: 'finanzas', element: <Lazy><FinancePage /></Lazy> },
       { path: 'calendario', element: <Lazy><CalendarPage /></Lazy> },
       { path: 'revision', element: <Lazy><ReviewPage /></Lazy> },
+      { path: 'objetivos', element: <Lazy><ObjectivesPage /></Lazy> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -14,6 +14,8 @@ export type HabitType = 'sleep' | 'attendance' | 'study' | 'exercise' | 'food' |
 export type Modality = 'presencial' | 'online' | 'hibrido'
 export type TransactionType = 'income' | 'expense'
 export type AccountKind = 'bank' | 'wallet' | 'cash' | 'benefit' | 'credit' | 'savings' | 'other'
+export type LifeGoalArea = 'academico' | 'salud' | 'finanzas' | 'carrera' | 'personal' | 'social' | 'otro'
+export type LifeGoalStatus = 'active' | 'done' | 'archived'
 
 export interface Profile {
   id: UUID
@@ -92,6 +94,7 @@ export interface Task {
   user_id: UUID
   course_id: UUID | null
   evaluation_id: UUID | null
+  goal_id: UUID | null
   title: string
   description: string | null
   due_at: ISODateTime | null
@@ -111,6 +114,7 @@ export interface Task {
 export interface Habit {
   id: UUID
   user_id: UUID
+  goal_id: UUID | null
   name: string
   type: HabitType
   icon: string | null
@@ -227,6 +231,20 @@ export interface SavingsRule {
   value: number
   trigger: 'on_income' | 'monthly'
   is_active: boolean
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
+export interface LifeGoal {
+  id: UUID
+  user_id: UUID
+  title: string
+  motivation: string | null
+  area: LifeGoalArea
+  color: string
+  target_date: ISODate | null
+  status: LifeGoalStatus
+  sort_order: number
   created_at: ISODateTime
   updated_at: ISODateTime
 }

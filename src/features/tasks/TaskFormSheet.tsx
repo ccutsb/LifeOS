@@ -11,6 +11,7 @@ import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
 import { toDateTimeLocal, fromDateTimeLocal } from '@/lib/dates'
 import { useCourses } from '@/features/university/hooks'
+import { useLifeGoals } from '@/features/objectives/hooks'
 import { useCreateTask, useUpdateTask } from './hooks'
 import type { Task } from '@/types/database'
 
@@ -18,11 +19,13 @@ export function TaskFormSheet({ task, onClose }: { task?: Task; onClose: () => v
   const create = useCreateTask()
   const update = useUpdateTask()
   const { data: courses = [] } = useCourses()
+  const { data: goals = [] } = useLifeGoals()
   const editing = Boolean(task)
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
   const [courseId, setCourseId] = useState(task?.course_id ?? '')
+  const [goalId, setGoalId] = useState(task?.goal_id ?? '')
   const [due, setDue] = useState(toDateTimeLocal(task?.due_at ?? null))
   const [important, setImportant] = useState(task?.is_important ?? false)
   const [urgent, setUrgent] = useState(task?.is_urgent ?? false)
@@ -38,6 +41,7 @@ export function TaskFormSheet({ task, onClose }: { task?: Task; onClose: () => v
       title: title.trim(),
       description: description.trim() || null,
       course_id: courseId || null,
+      goal_id: goalId || null,
       due_at: fromDateTimeLocal(due),
       is_important: important,
       is_urgent: urgent,
@@ -84,6 +88,19 @@ export function TaskFormSheet({ task, onClose }: { task?: Task; onClose: () => v
             <Input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
         </div>
+
+        {goals.length > 0 && (
+          <Field label="¿Aporta a un objetivo?">
+            <Select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+              <option value="">Ninguno</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Toggle active={important} onClick={() => setImportant((v) => !v)} icon={<Star className="h-4 w-4" />} label="Importante" tone="brand" />

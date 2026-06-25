@@ -40,6 +40,31 @@ begin
       select 1 from public.reminders r
       where r.source_type = 'task' and r.source_id = t.id
     );
+
+  -- Hábitos con recordatorio: avisar HOY a su hora local (respeta la zona del perfil),
+  -- solo en los días configurados y si aún no se cumplió ni se generó el aviso de hoy.
+  insert into public.reminders (user_id, title, body, remind_at, source_type, source_id, channel)
+  select h.user_id,
+         'Hábito: ' || h.name,
+         coalesce(h.cue, 'Es momento de tu hábito'),
+         ((now() at time zone p.timezone)::date + h.reminder_time) at time zone p.timezone,
+         'habit', h.id, 'push'
+  from public.habits h
+  join public.profiles p on p.id = h.user_id
+  where h.is_active = true
+    and h.reminder_time is not null
+    and extract(dow from (now() at time zone p.timezone))::int = any (h.weekdays)
+    and not exists (
+      select 1 from public.reminders r
+      where r.source_type = 'habit' and r.source_id = h.id
+        and (r.remind_at at time zone p.timezone)::date = (now() at time zone p.timezone)::date
+    )
+    and not exists (
+      select 1 from public.habit_logs hl
+      where hl.habit_id = h.id
+        and hl.log_date = (now() at time zone p.timezone)::date
+        and hl.done
+    );
 end;
 $$;
 

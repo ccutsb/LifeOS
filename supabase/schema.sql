@@ -393,6 +393,28 @@ create table if not exists public.savings_rules (
 );
 
 -- ╔══════════════════════════════════════════════════════════════════════╗
+-- ║  OBJETIVOS DE VIDA (capa superior que conecta tareas y hábitos)        ║
+-- ╚══════════════════════════════════════════════════════════════════════╝
+create table if not exists public.life_goals (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  title       text not null,
+  motivation  text,                 -- el "por qué" (motivación)
+  area        text not null default 'personal'
+              check (area in ('academico','salud','finanzas','carrera','personal','social','otro')),
+  color       text not null default '#6366f1',
+  target_date date,
+  status      text not null default 'active' check (status in ('active','done','archived')),
+  sort_order  int not null default 0,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Vincular tareas y hábitos a un objetivo (opcional). Idempotente para bases existentes.
+alter table public.tasks  add column if not exists goal_id uuid references public.life_goals(id) on delete set null;
+alter table public.habits add column if not exists goal_id uuid references public.life_goals(id) on delete set null;
+
+-- ╔══════════════════════════════════════════════════════════════════════╗
 -- ║  CALENDARIO / RECORDATORIOS / NOTIFICACIONES                          ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
 create table if not exists public.events (
@@ -471,6 +493,9 @@ create index if not exists idx_evaluations_course    on public.evaluations(cours
 create index if not exists idx_evaluations_user_due  on public.evaluations(user_id, due_at);
 create index if not exists idx_tasks_user_status     on public.tasks(user_id, status);
 create index if not exists idx_tasks_user_due        on public.tasks(user_id, due_at);
+create index if not exists idx_tasks_goal            on public.tasks(goal_id);
+create index if not exists idx_habits_goal           on public.habits(goal_id);
+create index if not exists idx_life_goals_user       on public.life_goals(user_id) where status <> 'archived';
 create index if not exists idx_habit_logs_habit_date on public.habit_logs(habit_id, log_date);
 create index if not exists idx_focus_user            on public.focus_sessions(user_id, started_at);
 create index if not exists idx_transactions_user_date on public.transactions(user_id, occurred_on);
@@ -514,7 +539,7 @@ begin
   foreach t in array array[
     'profiles','semesters','courses','course_schedule','evaluations','tasks',
     'habits','rewards','accounts','transactions','budgets','savings_goals','savings_rules',
-    'events','weekly_reviews'
+    'life_goals','events','weekly_reviews'
   ] loop
     execute format('drop trigger if exists trg_%1$s_updated on public.%1$I;', t);
     execute format(
@@ -544,7 +569,7 @@ begin
     'semesters','courses','course_schedule','evaluations','tasks',
     'habits','habit_logs','focus_sessions','points_ledger','rewards',
     'accounts','transactions','budgets','savings_goals','savings_rules',
-    'events','reminders','push_subscriptions','notifications','weekly_reviews'
+    'life_goals','events','reminders','push_subscriptions','notifications','weekly_reviews'
   ] loop
     execute format('alter table public.%I enable row level security;', t);
     execute format('drop policy if exists %1$s_select on public.%1$I;', t);

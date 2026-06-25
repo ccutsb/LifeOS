@@ -3,9 +3,11 @@ import clsx from 'clsx'
 import { Sheet } from '@/components/ui/Sheet'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
+import { useLifeGoals } from '@/features/objectives/hooks'
 import { useCreateHabit, useUpdateHabit, useDeleteHabit } from './hooks'
 import type { Habit, HabitType } from '@/types/database'
 
@@ -22,9 +24,11 @@ export function HabitFormSheet({ habit, onClose }: { habit?: Habit; onClose: () 
   const create = useCreateHabit()
   const update = useUpdateHabit()
   const del = useDeleteHabit()
+  const { data: goals = [] } = useLifeGoals()
   const editing = Boolean(habit)
 
   const [type, setType] = useState<HabitType>(habit?.type ?? 'study')
+  const [goalId, setGoalId] = useState(habit?.goal_id ?? '')
   const [name, setName] = useState(habit?.name ?? PRESETS.find((p) => p.type === 'study')!.name)
   const [icon, setIcon] = useState(habit?.icon ?? '📚')
   const [color, setColor] = useState(habit?.color ?? '#22c55e')
@@ -52,6 +56,7 @@ export function HabitFormSheet({ habit, onClose }: { habit?: Habit; onClose: () 
       cue: cue.trim() || null,
       reward: reward.trim() || null,
       reminder_time: reminder || null,
+      goal_id: goalId || null,
     }
     try {
       if (editing && habit) {
@@ -110,9 +115,22 @@ export function HabitFormSheet({ habit, onClose }: { habit?: Habit; onClose: () 
         <Field label="Recompensa" hint="Algo pequeño e inmediato al cumplir">
           <Input value={reward} onChange={(e) => setReward(e.target.value)} placeholder="Un capítulo de mi serie" />
         </Field>
-        <Field label="Recordatorio">
+        <Field label="Recordatorio" hint="Te avisaremos a esta hora los días del hábito">
           <Input type="time" value={reminder} onChange={(e) => setReminder(e.target.value)} />
         </Field>
+
+        {goals.length > 0 && (
+          <Field label="¿Aporta a un objetivo?">
+            <Select value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+              <option value="">Ninguno</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
         <Button type="submit" fullWidth disabled={saving} className="mt-1">
           {saving ? 'Guardando…' : editing ? 'Guardar' : 'Crear hábito'}
