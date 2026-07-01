@@ -392,6 +392,21 @@ create table if not exists public.savings_rules (
   updated_at timestamptz not null default now()
 );
 
+-- Transferencias entre cuentas propias (una fila mueve dinero de A a B).
+-- El saldo de cada cuenta se deriva, por lo que NO afecta ingresos/gastos/presupuestos.
+create table if not exists public.transfers (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  from_account_id uuid not null references public.accounts(id) on delete cascade,
+  to_account_id   uuid not null references public.accounts(id) on delete cascade,
+  amount          numeric(14,2) not null check (amount > 0),
+  description     text,
+  occurred_on     date not null default current_date,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint transfers_distinct_accounts check (from_account_id <> to_account_id)
+);
+
 -- ╔══════════════════════════════════════════════════════════════════════╗
 -- ║  OBJETIVOS DE VIDA (capa superior que conecta tareas y hábitos)        ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
@@ -501,6 +516,9 @@ create index if not exists idx_focus_user            on public.focus_sessions(us
 create index if not exists idx_transactions_user_date on public.transactions(user_id, occurred_on);
 create index if not exists idx_transactions_account    on public.transactions(account_id);
 create index if not exists idx_accounts_user           on public.accounts(user_id) where archived = false;
+create index if not exists idx_transfers_user          on public.transfers(user_id, occurred_on);
+create index if not exists idx_transfers_from          on public.transfers(from_account_id);
+create index if not exists idx_transfers_to            on public.transfers(to_account_id);
 create index if not exists idx_reminders_pending     on public.reminders(remind_at) where sent = false;
 create index if not exists idx_events_user_start     on public.events(user_id, starts_at);
 create index if not exists idx_notifications_user    on public.notifications(user_id, read);
@@ -538,7 +556,7 @@ declare t text;
 begin
   foreach t in array array[
     'profiles','semesters','courses','course_schedule','evaluations','tasks',
-    'habits','rewards','accounts','transactions','budgets','savings_goals','savings_rules',
+    'habits','rewards','accounts','transactions','transfers','budgets','savings_goals','savings_rules',
     'life_goals','events','weekly_reviews'
   ] loop
     execute format('drop trigger if exists trg_%1$s_updated on public.%1$I;', t);
@@ -568,7 +586,7 @@ begin
   foreach t in array array[
     'semesters','courses','course_schedule','evaluations','tasks',
     'habits','habit_logs','focus_sessions','points_ledger','rewards',
-    'accounts','transactions','budgets','savings_goals','savings_rules',
+    'accounts','transactions','transfers','budgets','savings_goals','savings_rules',
     'life_goals','events','reminders','push_subscriptions','notifications','weekly_reviews'
   ] loop
     execute format('alter table public.%I enable row level security;', t);

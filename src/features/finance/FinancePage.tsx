@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat, Wallet } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat, Wallet, ArrowLeftRight } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -9,11 +9,13 @@ import { formatCLP } from '@/lib/money'
 import { shortDate } from '@/lib/dates'
 import {
   useTransactions,
+  useTransfers,
   useAccounts,
   useBudgets,
   useSavingsGoals,
   useSavingsRules,
   useDeleteTransaction,
+  useDeleteTransfer,
   useDeleteBudget,
   useDeleteGoal,
 } from './hooks'
@@ -23,15 +25,22 @@ import { BudgetFormSheet } from './BudgetFormSheet'
 import { AccountFormSheet } from './AccountFormSheet'
 import { ContributeGoalSheet } from './ContributeGoalSheet'
 import { accountIcon, accountBalance } from './accountKinds'
-import type { Account, SavingsGoal, Transaction } from '@/types/database'
+import type { Account, SavingsGoal, Transaction, Transfer } from '@/types/database'
+
+// Elemento unificado del historial: un movimiento o una transferencia.
+type Movement =
+  | { kind: 'tx'; date: string; tx: Transaction }
+  | { kind: 'transfer'; date: string; tr: Transfer }
 
 export function FinancePage() {
   const { data: transactions = [], isLoading } = useTransactions()
+  const { data: transfers = [] } = useTransfers()
   const { data: accounts = [] } = useAccounts()
   const { data: budgets = [] } = useBudgets()
   const { data: goals = [] } = useSavingsGoals()
   const { data: rules = [] } = useSavingsRules()
   const delTx = useDeleteTransaction()
+  const delTransfer = useDeleteTransfer()
   const delBudget = useDeleteBudget()
   const delGoal = useDeleteGoal()
 
@@ -52,7 +61,16 @@ export function FinancePage() {
     monthTx.filter((t) => t.type === 'expense' && t.category === cat).reduce((s, t) => s + Number(t.amount), 0)
   const autoPercentOf = (goalId: string) => Number(rules.find((r) => r.goal_id === goalId)?.value ?? 0)
   const accountById = (id: string | null) => (id ? accounts.find((a) => a.id === id) : undefined)
-  const totalWallets = accounts.reduce((s, a) => s + accountBalance(a, transactions), 0)
+  const accountName = (id: string | null) => accountById(id)?.name ?? 'Cuenta'
+  const totalWallets = accounts.reduce((s, a) => s + accountBalance(a, transactions, transfers), 0)
+
+  // Historial combinado (movimientos + transferencias), más recientes primero.
+  const movements: Movement[] = [
+    ...transactions.map((tx) => ({ kind: 'tx' as const, date: tx.occurred_on, tx })),
+    ...transfers.map((tr) => ({ kind: 'transfer' as const, date: tr.occurred_on, tr })),
+  ]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 20)
 
   const onContribute = (goal: SavingsGoal) => setContributeGoal(goal)
 
@@ -117,7 +135,7 @@ export function FinancePage() {
           <>
             <ul className="grid grid-cols-2 gap-2.5">
               {accounts.map((a) => {
-                const bal = accountBalance(a, transactions)
+                const bal = accountBalance(a, transactions, transfers)
                 const Icon = accountIcon(a.kind)
                 return (
                   <li key={a.id}>
@@ -245,35 +263,59 @@ export function FinancePage() {
         )}
       </section>
 
-      {/* Movimientos recientes */}
+      {/* Movimientos recientes (incluye transferencias) */}
       <section>
         <h3 className="mb-2 font-semibold">Movimientos</h3>
-        {transactions.length === 0 ? (
+        {movements.length === 0 ? (
           <EmptyState title="Sin movimientos" hint="Registra tu primer ingreso o gasto con los botones de arriba." />
         ) : (
           <ul className="flex flex-col gap-2">
-            {transactions.slice(0, 20).map((t) => (
-              <li key={t.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
-                <span className={`h-8 w-1 rounded-full ${t.type === 'income' ? 'bg-success' : 'bg-danger'}`} />
-                <button onClick={() => setEditTx(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
+            {movements.map((m) =>
+              m.kind === 'tx' ? (
+                <li key={`tx-${m.tx.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+                  <span className={`h-8 w-1 rounded-full ${m.tx.type === 'income' ? 'bg-success' : 'bg-danger'}`} />
+                  <button onClick={() => setEditTx(m.tx)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {m.tx.description || m.tx.category || (m.tx.type === 'income' ? 'Ingreso' : 'Gasto')}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {m.tx.category ? `${m.tx.category} · ` : ''}
+                        {accountById(m.tx.account_id) ? `${accountById(m.tx.account_id)!.name} · ` : ''}
+                        {shortDate(m.tx.occurred_on)}
+                      </p>
+                    </div>
+                    <span className={`text-sm font-semibold ${m.tx.type === 'income' ? 'text-success' : 'text-danger'}`}>
+                      {m.tx.type === 'income' ? '+' : '−'}
+                      {formatCLP(Number(m.tx.amount))}
+                    </span>
+                  </button>
+                  <button onClick={() => delTx.mutate(m.tx.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ) : (
+                <li key={`tr-${m.tr.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+                  <span className="h-8 w-1 rounded-full bg-info" />
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-info/15">
+                    <ArrowLeftRight className="h-4 w-4 text-info" />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{t.description || t.category || (t.type === 'income' ? 'Ingreso' : 'Gasto')}</p>
+                    <p className="truncate text-sm font-medium">
+                      Transferencia: {accountName(m.tr.from_account_id)} → {accountName(m.tr.to_account_id)}
+                    </p>
                     <p className="text-xs text-muted">
-                      {t.category ? `${t.category} · ` : ''}
-                      {accountById(t.account_id) ? `${accountById(t.account_id)!.name} · ` : ''}
-                      {shortDate(t.occurred_on)}
+                      {m.tr.description ? `${m.tr.description} · ` : ''}
+                      {shortDate(m.tr.occurred_on)}
                     </p>
                   </div>
-                  <span className={`text-sm font-semibold ${t.type === 'income' ? 'text-success' : 'text-danger'}`}>
-                    {t.type === 'income' ? '+' : '−'}
-                    {formatCLP(Number(t.amount))}
-                  </span>
-                </button>
-                <button onClick={() => delTx.mutate(t.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+                  <span className="text-sm font-semibold text-info">{formatCLP(Number(m.tr.amount))}</span>
+                  <button onClick={() => delTransfer.mutate(m.tr.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ),
+            )}
           </ul>
         )}
       </section>

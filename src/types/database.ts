@@ -200,6 +200,18 @@ export interface Transaction {
   updated_at: ISODateTime
 }
 
+export interface Transfer {
+  id: UUID
+  user_id: UUID
+  from_account_id: UUID
+  to_account_id: UUID
+  amount: number
+  description: string | null
+  occurred_on: ISODate
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
 export interface Budget {
   id: UUID
   user_id: UUID
