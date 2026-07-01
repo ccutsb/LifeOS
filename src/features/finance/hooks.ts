@@ -2,13 +2,32 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
 import { useInsert, useUpdate, useDelete, getUserId } from '@/lib/crud'
-import type { Account, Budget, SavingsGoal, SavingsRule, Transaction } from '@/types/database'
+import type { Account, Budget, SavingsGoal, SavingsRule, Transaction, Transfer } from '@/types/database'
 
 const TX = qk.transactions
+const TRANSFERS = qk.transfers
 const ACCOUNTS = qk.accounts
 const BUD = qk.budgets
 const GOALS = qk.savingsGoals
 const RULES = qk.savingsRules
+
+export function useTransfers() {
+  return useQuery({
+    queryKey: TRANSFERS,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transfers')
+        .select('*')
+        .order('occurred_on', { ascending: false })
+        .limit(300)
+      if (error) throw error
+      return (data ?? []) as Transfer[]
+    },
+  })
+}
+
+export const useCreateTransfer = () => useInsert<Transfer>('transfers', [TRANSFERS])
+export const useDeleteTransfer = () => useDelete('transfers', [TRANSFERS])
 
 export function useAccounts() {
   return useQuery({

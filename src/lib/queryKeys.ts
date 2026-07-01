@@ -9,6 +9,7 @@ export const qk = {
   habitLogs: ['habit_logs'] as const,
   notifications: ['notifications'] as const,
   transactions: ['transactions'] as const,
+  transfers: ['transfers'] as const,
   accounts: ['accounts'] as const,
   budgets: ['budgets'] as const,
   savingsGoals: ['savings_goals'] as const,
