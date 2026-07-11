@@ -10,6 +10,7 @@ import { ChoiceChips } from '@/components/ui/ChoiceChips'
 import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
 import { useAreas } from '@/features/areas/hooks'
+import { objectiveExampleFor } from '@/features/areas/examples'
 import { useCreateObjective, useUpdateObjective, useDeleteObjective } from './hooks'
 import type { Objective } from '@/types/database'
 
@@ -41,6 +42,8 @@ export function ObjectiveFormSheet({
   const [status, setStatus] = useState(objective?.status ?? 'active')
 
   const saving = create.isPending || update.isPending
+  const selectedArea = areas.find((a) => a.id === areaId)
+  const titlePlaceholder = objectiveExampleFor(selectedArea?.kind)
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -82,7 +85,7 @@ export function ObjectiveFormSheet({
     <Sheet open onClose={onClose} title={editing ? 'Editar objetivo' : 'Nuevo objetivo'}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="¿Qué quieres lograr?">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Certificación AWS SAA" autoFocus required />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={titlePlaceholder} autoFocus required />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
