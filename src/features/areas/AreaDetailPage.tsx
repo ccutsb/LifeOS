@@ -13,6 +13,7 @@ import { ObjectiveFormSheet } from '@/features/objectives/ObjectiveFormSheet'
 import { ObjectiveDetailSheet } from '@/features/objectives/ObjectiveDetailSheet'
 import { useAreas } from './hooks'
 import { AreaFormSheet } from './AreaFormSheet'
+import { objectiveExampleFor } from './examples'
 import type { Objective, Task } from '@/types/database'
 
 export function AreaDetailPage() {
@@ -90,7 +91,7 @@ export function AreaDetailPage() {
         </div>
         {areaObjectives.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border py-4 text-center text-sm text-muted">
-            Una meta grande dividida en pasos pequeños. Ej: "Certificación AWS".
+            Una meta grande dividida en pasos pequeños. Ej: "{objectiveExampleFor(area.kind)}".
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
