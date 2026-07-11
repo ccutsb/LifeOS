@@ -12,6 +12,7 @@ import { useTasks } from '@/features/tasks/hooks'
 import { useHabits, useHabitLogs } from '@/features/habits/hooks'
 import { useEvaluations } from '@/features/university/hooks'
 import { useFocusSessions } from '@/features/focus/hooks'
+import { useAreas } from '@/features/areas/hooks'
 import { useWeeklyReview, useSaveReview } from './hooks'
 
 export function ReviewPage() {
@@ -24,6 +25,7 @@ export function ReviewPage() {
   const { data: habitLogs = [] } = useHabitLogs()
   const { data: evals = [] } = useEvaluations()
   const { data: sessions = [] } = useFocusSessions()
+  const { data: areas = [] } = useAreas()
   const { data: saved } = useWeeklyReview(weekKey)
   const save = useSaveReview()
 
@@ -32,7 +34,25 @@ export function ReviewPage() {
     return d >= ws && d <= we
   }
 
-  const tasksDone = tasks.filter((t) => t.status === 'done' && t.completed_at && inWeek(t.completed_at)).length
+  // Tareas hechas esta semana: únicas completadas + recurrentes cumplidas
+  const weekDone = tasks.filter(
+    (t) =>
+      (t.completed_at && inWeek(t.completed_at)) ||
+      (t.recurrence && t.last_completed_at && inWeek(t.last_completed_at)),
+  )
+  const tasksDone = weekDone.length
+
+  // Balance por áreas (minutos invertidos, estimación 30 min si no hay dato)
+  const areaBalance = areas
+    .map((a) => {
+      const own = weekDone.filter((t) => t.area_id === a.id)
+      const minutes = own.reduce((s, t) => s + (t.estimated_minutes ?? 30), 0)
+      return { area: a, count: own.length, minutes }
+    })
+    .filter((b) => b.count > 0)
+    .sort((a, b) => b.minutes - a.minutes)
+  const noAreaCount = weekDone.filter((t) => !t.area_id).length
+  const maxAreaMinutes = Math.max(30, ...areaBalance.map((b) => b.minutes))
   const overdue = tasks.filter(
     (t) => ['inbox', 'pending', 'in_progress'].includes(t.status) && t.due_at && isPast(new Date(t.due_at)) && !isToday(new Date(t.due_at)),
   ).length
@@ -87,7 +107,14 @@ export function ReviewPage() {
         went_well: well ?? autoWell,
         went_wrong: wrong ?? autoWrong,
         next_priorities: pri ?? autoPri,
-        metrics: { tasksDone, overdue, focusMin, pomodoros: focusDone.length, habitsDone },
+        metrics: {
+          tasksDone,
+          overdue,
+          focusMin,
+          pomodoros: focusDone.length,
+          habitsDone,
+          areas: Object.fromEntries(areaBalance.map((b) => [b.area.name, b.minutes])),
+        },
       })
       toast.success('Revisión guardada')
     } catch (err) {
@@ -105,6 +132,37 @@ export function ReviewPage() {
         <Metric icon={<Flame className="h-4 w-4 text-warning" />} value={habitsDone} label="Hábitos" />
         <Metric icon={<Target className="h-4 w-4 text-danger" />} value={overdue} label="Vencidas" />
       </div>
+
+      {/* Balance por áreas: dónde invertiste la semana */}
+      {areaBalance.length > 0 && (
+        <Card>
+          <h3 className="mb-3 font-semibold">Tu semana por áreas</h3>
+          <ul className="flex flex-col gap-2.5">
+            {areaBalance.map(({ area, count, minutes }) => (
+              <li key={area.id}>
+                <div className="flex items-center justify-between text-sm">
+                  <span>
+                    {area.icon} {area.name}
+                  </span>
+                  <span className="text-muted">
+                    {count} {count === 1 ? 'tarea' : 'tareas'} · ~{Math.floor(minutes / 60) > 0 ? `${Math.floor(minutes / 60)}h ` : ''}
+                    {minutes % 60}m
+                  </span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface-2">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${(minutes / maxAreaMinutes) * 100}%`, backgroundColor: area.color }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+          {noAreaCount > 0 && (
+            <p className="mt-3 text-xs text-muted">+ {noAreaCount} sin área (clasifícalas para ver mejor tu balance)</p>
+          )}
+        </Card>
+      )}
 
       <Section icon={<ThumbsUp className="h-4 w-4 text-success" />} title="Qué salió bien">
         <Textarea rows={3} value={well ?? autoWell} onChange={(e) => setWell(e.target.value)} />

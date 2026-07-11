@@ -8,6 +8,18 @@ export type ISODateTime = string // timestamptz
 export type EisenhowerQuadrant = 'do' | 'schedule' | 'delegate' | 'eliminate'
 export type TaskStatus = 'inbox' | 'pending' | 'in_progress' | 'done' | 'cancelled'
 export type Energy = 'low' | 'medium' | 'high'
+
+/** Recurrencia de tareas (subset pragmático de RRULE — ver docs/EVOLUTION.md). */
+export type Recurrence =
+  | { freq: 'daily' }
+  | { freq: 'weekly'; byweekday: number[] } // 0=Dom ... 6=Sáb
+  | { freq: 'interval'; days: number }
+  | { freq: 'monthly'; bymonthday: number }
+
+export type AreaKind =
+  | 'university' | 'work' | 'home' | 'health' | 'finance'
+  | 'growth' | 'projects' | 'leisure' | 'custom'
+export type LifeMode = 'semestre' | 'vacaciones'
 export type EvaluationType =
   | 'prueba' | 'examen' | 'control' | 'quiz' | 'trabajo' | 'laboratorio' | 'tarea' | 'otro'
 export type HabitType = 'sleep' | 'attendance' | 'study' | 'exercise' | 'food' | 'custom'
@@ -23,9 +35,67 @@ export interface Profile {
   theme: string
   points: number
   onboarding_done: boolean
+  life_mode: LifeMode
   settings: Record<string, unknown>
   created_at: ISODateTime
   updated_at: ISODateTime
+}
+
+export interface LifeArea {
+  id: UUID
+  user_id: UUID
+  name: string
+  icon: string | null
+  color: string
+  kind: AreaKind
+  is_active: boolean
+  priority: number
+  sort_order: number
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
+export interface Objective {
+  id: UUID
+  user_id: UUID
+  area_id: UUID | null
+  title: string
+  description: string | null
+  target_date: ISODate | null
+  status: 'active' | 'paused' | 'done' | 'dropped'
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
+export interface Routine {
+  id: UUID
+  user_id: UUID
+  name: string
+  icon: string | null
+  trigger_kind: 'morning' | 'evening' | 'weekday'
+  weekdays: number[]
+  is_active: boolean
+  sort_order: number
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
+export interface RoutineItem {
+  id: UUID
+  user_id: UUID
+  routine_id: UUID
+  title: string
+  sort_order: number
+  created_at: ISODateTime
+}
+
+export interface RoutineLog {
+  id: UUID
+  user_id: UUID
+  routine_item_id: UUID
+  log_date: ISODate
+  done: boolean
+  created_at: ISODateTime
 }
 
 export interface Semester {
@@ -43,6 +113,7 @@ export interface Course {
   id: UUID
   user_id: UUID
   semester_id: UUID | null
+  area_id: UUID | null
   name: string
   code: string | null
   teacher: string | null
@@ -91,6 +162,8 @@ export interface Task {
   user_id: UUID
   course_id: UUID | null
   evaluation_id: UUID | null
+  area_id: UUID | null
+  objective_id: UUID | null
   title: string
   description: string | null
   due_at: ISODateTime | null
@@ -101,6 +174,8 @@ export interface Task {
   next_action: string | null
   estimated_minutes: number | null
   energy: Energy | null
+  recurrence: Recurrence | null
+  last_completed_at: ISODateTime | null
   completed_at: ISODateTime | null
   sort_order: number
   created_at: ISODateTime

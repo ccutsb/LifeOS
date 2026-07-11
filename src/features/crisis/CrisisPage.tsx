@@ -81,7 +81,7 @@ export function CrisisPage() {
               {i + 1}
             </span>
             <div className="min-w-0 flex-1">
-              <TaskRow task={t} accent={colorOf(t.course_id)} onToggle={() => complete.mutate({ id: t.id, done: true })} />
+              <TaskRow task={t} accent={colorOf(t.course_id)} onToggle={() => complete.mutate({ task: t, done: true })} />
             </div>
             <button
               onClick={() => postpone(t)}

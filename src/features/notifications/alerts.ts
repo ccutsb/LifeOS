@@ -1,6 +1,7 @@
 import { isPast, isToday, isTomorrow } from '@/lib/dates'
 import { useTasks } from '@/features/tasks/hooks'
 import { useCourses, useEvaluations, useSchedule } from '@/features/university/hooks'
+import { useAreas } from '@/features/areas/hooks'
 import type { Course, CourseSchedule, Evaluation, Task } from '@/types/database'
 
 export type AlertSeverity = 'high' | 'medium' | 'low'
@@ -17,8 +18,10 @@ export function buildAlerts(opts: {
   evals: Evaluation[]
   schedule: CourseSchedule[]
   courses: Course[]
+  /** false = Universidad en pausa (modo vacaciones): sin alertas académicas */
+  universityActive?: boolean
 }): Alert[] {
-  const { tasks, evals, schedule, courses } = opts
+  const { tasks, evals, schedule, courses, universityActive = true } = opts
   const nameOf = (id: string | null) => (id ? courses.find((c) => c.id === id)?.name : undefined)
   const out: Alert[] = []
 
@@ -29,22 +32,24 @@ export function buildAlerts(opts: {
     else if (isToday(d)) out.push({ id: `task-${t.id}`, title: `Vence hoy: ${t.title}`, severity: 'medium', to: '/tareas' })
   }
 
-  for (const e of evals) {
-    if (e.grade != null || !e.due_at) continue
-    const d = new Date(e.due_at)
-    if (isToday(d)) out.push({ id: `eval-${e.id}`, title: `Evaluación hoy: ${e.title}`, body: nameOf(e.course_id), severity: 'high', to: '/universidad' })
-    else if (isTomorrow(d)) out.push({ id: `eval-${e.id}`, title: `Evaluación mañana: ${e.title}`, body: nameOf(e.course_id), severity: 'medium', to: '/universidad' })
-  }
+  if (universityActive) {
+    for (const e of evals) {
+      if (e.grade != null || !e.due_at) continue
+      const d = new Date(e.due_at)
+      if (isToday(d)) out.push({ id: `eval-${e.id}`, title: `Evaluación hoy: ${e.title}`, body: nameOf(e.course_id), severity: 'high', to: '/universidad' })
+      else if (isTomorrow(d)) out.push({ id: `eval-${e.id}`, title: `Evaluación mañana: ${e.title}`, body: nameOf(e.course_id), severity: 'medium', to: '/universidad' })
+    }
 
-  const wd = new Date().getDay()
-  for (const s of schedule.filter((s) => s.weekday === wd)) {
-    out.push({
-      id: `class-${s.id}`,
-      title: `Clase hoy: ${nameOf(s.course_id) ?? 'Ramo'}`,
-      body: `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`,
-      severity: 'low',
-      to: '/universidad',
-    })
+    const wd = new Date().getDay()
+    for (const s of schedule.filter((s) => s.weekday === wd)) {
+      out.push({
+        id: `class-${s.id}`,
+        title: `Clase hoy: ${nameOf(s.course_id) ?? 'Ramo'}`,
+        body: `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`,
+        severity: 'low',
+        to: '/universidad',
+      })
+    }
   }
 
   const rank: Record<AlertSeverity, number> = { high: 0, medium: 1, low: 2 }
@@ -56,5 +61,7 @@ export function useAlerts(): Alert[] {
   const { data: evals = [] } = useEvaluations()
   const { data: schedule = [] } = useSchedule()
   const { data: courses = [] } = useCourses()
-  return buildAlerts({ tasks, evals, schedule, courses })
+  const { data: areas = [] } = useAreas()
+  const uni = areas.find((a) => a.kind === 'university')
+  return buildAlerts({ tasks, evals, schedule, courses, universityActive: uni ? uni.is_active : true })
 }

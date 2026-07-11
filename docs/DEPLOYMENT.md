@@ -13,7 +13,11 @@
 
 1. En el Dashboard de Supabase → **SQL Editor** → **New query**.
 2. Pega el contenido de [`supabase/schema.sql`](../supabase/schema.sql) y pulsa **Run**.
-3. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, …).
+3. **LifeOS 2.0:** pega y corre también [`supabase/migration-v2.sql`](../supabase/migration-v2.sql)
+   (áreas de vida, objetivos, rutinas y recurrencia; crea tus 8 áreas por defecto).
+4. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `life_areas`, …).
+
+> Ambos archivos son idempotentes: puedes correrlos de nuevo sin romper nada.
 
 ## 3. Configurar Auth
 
