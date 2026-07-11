@@ -3,9 +3,13 @@ import { Outlet } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
 import { Spinner } from '@/components/ui/Spinner'
 import { QuickCaptureSheet } from '@/features/capture/QuickCaptureSheet'
+import { useLocalReminders } from '@/features/notifications/useLocalReminders'
+import { OnboardingOverlay } from '@/features/onboarding/OnboardingOverlay'
 
 export function AppShell() {
   const [capturing, setCapturing] = useState(false)
+  // Dispara avisos locales en el dispositivo para entregas/evaluaciones del día.
+  useLocalReminders()
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col">
@@ -24,6 +28,7 @@ export function AppShell() {
       </main>
       <BottomNav onCapture={() => setCapturing(true)} />
       {capturing && <QuickCaptureSheet onClose={() => setCapturing(false)} />}
+      <OnboardingOverlay />
     </div>
   )
 }

@@ -1,42 +1,55 @@
 import { useState } from 'react'
-import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Trash2, Target, PiggyBank, Repeat, Wallet, ArrowLeftRight } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { toast } from '@/stores/toast'
-import { errorMessage } from '@/lib/errors'
 import { formatCLP } from '@/lib/money'
 import { shortDate } from '@/lib/dates'
 import {
   useTransactions,
+  useTransfers,
+  useAccounts,
   useBudgets,
   useSavingsGoals,
   useSavingsRules,
   useDeleteTransaction,
+  useDeleteTransfer,
   useDeleteBudget,
   useDeleteGoal,
-  useContributeGoal,
 } from './hooks'
 import { TransactionFormSheet } from './TransactionFormSheet'
 import { GoalFormSheet } from './GoalFormSheet'
 import { BudgetFormSheet } from './BudgetFormSheet'
-import type { SavingsGoal } from '@/types/database'
+import { AccountFormSheet } from './AccountFormSheet'
+import { ContributeGoalSheet } from './ContributeGoalSheet'
+import { accountIcon, accountBalance } from './accountKinds'
+import type { Account, SavingsGoal, Transaction, Transfer } from '@/types/database'
+
+// Elemento unificado del historial: un movimiento o una transferencia.
+type Movement =
+  | { kind: 'tx'; date: string; tx: Transaction }
+  | { kind: 'transfer'; date: string; tr: Transfer }
 
 export function FinancePage() {
   const { data: transactions = [], isLoading } = useTransactions()
+  const { data: transfers = [] } = useTransfers()
+  const { data: accounts = [] } = useAccounts()
   const { data: budgets = [] } = useBudgets()
   const { data: goals = [] } = useSavingsGoals()
   const { data: rules = [] } = useSavingsRules()
   const delTx = useDeleteTransaction()
+  const delTransfer = useDeleteTransfer()
   const delBudget = useDeleteBudget()
   const delGoal = useDeleteGoal()
-  const contribute = useContributeGoal()
 
   const [txType, setTxType] = useState<'income' | 'expense' | null>(null)
+  const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [goalForm, setGoalForm] = useState<{ goal?: SavingsGoal } | null>(null)
   const [showBudget, setShowBudget] = useState(false)
+  const [accountForm, setAccountForm] = useState<{ account?: Account } | null>(null)
+  const [contributeGoal, setContributeGoal] = useState<SavingsGoal | null>(null)
 
   const now = new Date()
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -47,14 +60,19 @@ export function FinancePage() {
   const spentByCat = (cat: string) =>
     monthTx.filter((t) => t.type === 'expense' && t.category === cat).reduce((s, t) => s + Number(t.amount), 0)
   const autoPercentOf = (goalId: string) => Number(rules.find((r) => r.goal_id === goalId)?.value ?? 0)
+  const accountById = (id: string | null) => (id ? accounts.find((a) => a.id === id) : undefined)
+  const accountName = (id: string | null) => accountById(id)?.name ?? 'Cuenta'
+  const totalWallets = accounts.reduce((s, a) => s + accountBalance(a, transactions, transfers), 0)
 
-  const onContribute = (goal: SavingsGoal) => {
-    const raw = window.prompt(`¿Cuánto abonar a "${goal.name}"? (CLP)`)
-    if (!raw) return
-    const amount = Number(raw)
-    if (!(amount > 0)) return
-    contribute.mutate({ goal, amount }, { onError: (e) => toast.error(errorMessage(e)) })
-  }
+  // Historial combinado (movimientos + transferencias), más recientes primero.
+  const movements: Movement[] = [
+    ...transactions.map((tx) => ({ kind: 'tx' as const, date: tx.occurred_on, tx })),
+    ...transfers.map((tr) => ({ kind: 'transfer' as const, date: tr.occurred_on, tr })),
+  ]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 20)
+
+  const onContribute = (goal: SavingsGoal) => setContributeGoal(goal)
 
   if (isLoading) {
     return (
@@ -97,6 +115,56 @@ export function FinancePage() {
           </Button>
         </div>
       </Card>
+
+      {/* Cuentas / Billeteras */}
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-semibold">
+            <Wallet className="h-4 w-4 text-success" /> Cuentas y billeteras
+          </h3>
+          <button onClick={() => setAccountForm({})} className="flex items-center gap-1 text-sm text-brand">
+            <Plus className="h-4 w-4" /> Nueva
+          </button>
+        </div>
+        {accounts.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-5 text-center text-sm text-muted">
+            Crea tus cuentas (MercadoPago, Banco Ripley, Scotiabank, Pluxee beca…) para ordenar de dónde sale y entra
+            cada peso.
+          </p>
+        ) : (
+          <>
+            <ul className="grid grid-cols-2 gap-2.5">
+              {accounts.map((a) => {
+                const bal = accountBalance(a, transactions, transfers)
+                const Icon = accountIcon(a.kind)
+                return (
+                  <li key={a.id}>
+                    <button
+                      onClick={() => setAccountForm({ account: a })}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left active:bg-surface-2"
+                    >
+                      <span
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+                        style={{ backgroundColor: `${a.color}22` }}
+                      >
+                        <Icon className="h-5 w-5" style={{ color: a.color }} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{a.name}</p>
+                        <p className={`text-sm font-semibold ${bal < 0 ? 'text-danger' : 'text-text'}`}>{formatCLP(bal)}</p>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm">
+              <span className="text-muted">Total disponible</span>
+              <span className={`font-bold ${totalWallets < 0 ? 'text-danger' : 'text-success'}`}>{formatCLP(totalWallets)}</span>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Metas */}
       <section>
@@ -195,37 +263,68 @@ export function FinancePage() {
         )}
       </section>
 
-      {/* Movimientos recientes */}
+      {/* Movimientos recientes (incluye transferencias) */}
       <section>
         <h3 className="mb-2 font-semibold">Movimientos</h3>
-        {transactions.length === 0 ? (
+        {movements.length === 0 ? (
           <EmptyState title="Sin movimientos" hint="Registra tu primer ingreso o gasto con los botones de arriba." />
         ) : (
           <ul className="flex flex-col gap-2">
-            {transactions.slice(0, 20).map((t) => (
-              <li key={t.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
-                <span className={`h-8 w-1 rounded-full ${t.type === 'income' ? 'bg-success' : 'bg-danger'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{t.description || t.category || (t.type === 'income' ? 'Ingreso' : 'Gasto')}</p>
-                  <p className="text-xs text-muted">
-                    {t.category ? `${t.category} · ` : ''}
-                    {shortDate(t.occurred_on)}
-                  </p>
-                </div>
-                <span className={`text-sm font-semibold ${t.type === 'income' ? 'text-success' : 'text-danger'}`}>
-                  {t.type === 'income' ? '+' : '−'}
-                  {formatCLP(Number(t.amount))}
-                </span>
-                <button onClick={() => delTx.mutate(t.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+            {movements.map((m) =>
+              m.kind === 'tx' ? (
+                <li key={`tx-${m.tx.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+                  <span className={`h-8 w-1 rounded-full ${m.tx.type === 'income' ? 'bg-success' : 'bg-danger'}`} />
+                  <button onClick={() => setEditTx(m.tx)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {m.tx.description || m.tx.category || (m.tx.type === 'income' ? 'Ingreso' : 'Gasto')}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {m.tx.category ? `${m.tx.category} · ` : ''}
+                        {accountById(m.tx.account_id) ? `${accountById(m.tx.account_id)!.name} · ` : ''}
+                        {shortDate(m.tx.occurred_on)}
+                      </p>
+                    </div>
+                    <span className={`text-sm font-semibold ${m.tx.type === 'income' ? 'text-success' : 'text-danger'}`}>
+                      {m.tx.type === 'income' ? '+' : '−'}
+                      {formatCLP(Number(m.tx.amount))}
+                    </span>
+                  </button>
+                  <button onClick={() => delTx.mutate(m.tx.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ) : (
+                <li key={`tr-${m.tr.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+                  <span className="h-8 w-1 rounded-full bg-info" />
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-info/15">
+                    <ArrowLeftRight className="h-4 w-4 text-info" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      Transferencia: {accountName(m.tr.from_account_id)} → {accountName(m.tr.to_account_id)}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {m.tr.description ? `${m.tr.description} · ` : ''}
+                      {shortDate(m.tr.occurred_on)}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-info">{formatCLP(Number(m.tr.amount))}</span>
+                  <button onClick={() => delTransfer.mutate(m.tr.id)} className="rounded-lg p-1.5 text-muted active:bg-surface-2" aria-label="Eliminar">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ),
+            )}
           </ul>
         )}
       </section>
 
       {txType && <TransactionFormSheet initialType={txType} onClose={() => setTxType(null)} />}
+      {editTx && (
+        <TransactionFormSheet initialType={editTx.type} transaction={editTx} onClose={() => setEditTx(null)} />
+      )}
+      {contributeGoal && <ContributeGoalSheet goal={contributeGoal} onClose={() => setContributeGoal(null)} />}
       {goalForm && (
         <GoalFormSheet
           goal={goalForm.goal}
@@ -234,6 +333,7 @@ export function FinancePage() {
         />
       )}
       {showBudget && <BudgetFormSheet onClose={() => setShowBudget(false)} />}
+      {accountForm && <AccountFormSheet account={accountForm.account} onClose={() => setAccountForm(null)} />}
     </div>
   )
 }

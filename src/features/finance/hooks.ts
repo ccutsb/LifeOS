@@ -1,12 +1,53 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useInsert, useDelete, getUserId } from '@/lib/crud'
-import type { Budget, SavingsGoal, SavingsRule, Transaction } from '@/types/database'
+import { qk } from '@/lib/queryKeys'
+import { useInsert, useUpdate, useDelete, getUserId } from '@/lib/crud'
+import type { Account, Budget, SavingsGoal, SavingsRule, Transaction, Transfer } from '@/types/database'
 
-const TX = ['transactions'] as const
-const BUD = ['budgets'] as const
-const GOALS = ['savings_goals'] as const
-const RULES = ['savings_rules'] as const
+const TX = qk.transactions
+const TRANSFERS = qk.transfers
+const ACCOUNTS = qk.accounts
+const BUD = qk.budgets
+const GOALS = qk.savingsGoals
+const RULES = qk.savingsRules
+
+export function useTransfers() {
+  return useQuery({
+    queryKey: TRANSFERS,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transfers')
+        .select('*')
+        .order('occurred_on', { ascending: false })
+        .limit(300)
+      if (error) throw error
+      return (data ?? []) as Transfer[]
+    },
+  })
+}
+
+export const useCreateTransfer = () => useInsert<Transfer>('transfers', [TRANSFERS])
+export const useDeleteTransfer = () => useDelete('transfers', [TRANSFERS])
+
+export function useAccounts() {
+  return useQuery({
+    queryKey: ACCOUNTS,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('archived', false)
+        .order('sort_order')
+        .order('created_at')
+      if (error) throw error
+      return (data ?? []) as Account[]
+    },
+  })
+}
+
+export const useCreateAccount = () => useInsert<Account>('accounts', [ACCOUNTS])
+export const useUpdateAccount = () => useUpdate<Account>('accounts', [ACCOUNTS])
+export const useDeleteAccount = () => useDelete('accounts', [ACCOUNTS, TX])
 
 export function useTransactions() {
   return useQuery({
@@ -57,6 +98,7 @@ export function useSavingsRules() {
 }
 
 export const useDeleteTransaction = () => useDelete('transactions', [TX])
+export const useUpdateTransaction = () => useUpdate<Transaction>('transactions', [TX])
 export const useCreateBudget = () => useInsert<Budget>('budgets', [BUD])
 export const useDeleteBudget = () => useDelete('budgets', [BUD])
 export const useDeleteGoal = () => useDelete('savings_goals', [GOALS, RULES])
@@ -71,6 +113,7 @@ export function useCreateTransaction() {
       category?: string | null
       description?: string | null
       occurred_on: string
+      account_id?: string | null
     }) => {
       const user_id = await getUserId()
       const { error } = await supabase.from('transactions').insert({ ...values, user_id })

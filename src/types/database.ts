@@ -1,4 +1,4 @@
-// Tipos de las filas de la base de datos (espejo de supabase/schema.sql).
+// Tipos de las filas de la base de datos (espejo de supabase/schema.sql + migraciones).
 // Cuando conectes Supabase puedes regenerarlos con la CLI, pero estos bastan.
 
 export type UUID = string
@@ -20,11 +20,13 @@ export type AreaKind =
   | 'university' | 'work' | 'home' | 'health' | 'finance'
   | 'growth' | 'projects' | 'leisure' | 'custom'
 export type LifeMode = 'semestre' | 'vacaciones'
+
 export type EvaluationType =
   | 'prueba' | 'examen' | 'control' | 'quiz' | 'trabajo' | 'laboratorio' | 'tarea' | 'otro'
 export type HabitType = 'sleep' | 'attendance' | 'study' | 'exercise' | 'food' | 'custom'
 export type Modality = 'presencial' | 'online' | 'hibrido'
 export type TransactionType = 'income' | 'expense'
+export type AccountKind = 'bank' | 'wallet' | 'cash' | 'benefit' | 'credit' | 'savings' | 'other'
 
 export interface Profile {
   id: UUID
@@ -164,6 +166,8 @@ export interface Task {
   evaluation_id: UUID | null
   area_id: UUID | null
   objective_id: UUID | null
+  /** Legado (life_goals); la migración v2 lo convierte en objective_id */
+  goal_id: UUID | null
   title: string
   description: string | null
   due_at: ISODateTime | null
@@ -191,6 +195,8 @@ export interface Habit {
   color: string
   cue: string | null
   reward: string | null
+  /** Legado (life_goals) */
+  goal_id: UUID | null
   target_value: number
   unit: string | null
   period: 'daily' | 'weekly'
@@ -240,6 +246,20 @@ export interface Reward {
   updated_at: ISODateTime
 }
 
+export interface Account {
+  id: UUID
+  user_id: UUID
+  name: string
+  kind: AccountKind
+  color: string
+  icon: string | null
+  initial_balance: number
+  archived: boolean
+  sort_order: number
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
 export interface Transaction {
   id: UUID
   user_id: UUID
@@ -249,8 +269,21 @@ export interface Transaction {
   description: string | null
   occurred_on: ISODate
   account: string | null
+  account_id: UUID | null
   is_recurring: boolean
   recurrence: Record<string, unknown> | null
+  created_at: ISODateTime
+  updated_at: ISODateTime
+}
+
+export interface Transfer {
+  id: UUID
+  user_id: UUID
+  from_account_id: UUID
+  to_account_id: UUID
+  amount: number
+  description: string | null
+  occurred_on: ISODate
   created_at: ISODateTime
   updated_at: ISODateTime
 }

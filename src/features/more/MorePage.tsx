@@ -13,6 +13,9 @@ import {
   ListChecks,
   Download,
   Upload,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -20,6 +23,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { useAreas, useUpdateArea } from '@/features/areas/hooks'
 import { useUpdate } from '@/lib/crud'
 import { qk } from '@/lib/queryKeys'
+import { useTheme, type ThemeChoice } from '@/lib/theme'
 import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
 import { exportBackup, importBackup } from '@/features/backup/backup'
@@ -36,12 +40,19 @@ const tiles = [
   { to: '/crisis', label: 'Modo Crisis', hint: 'Tareas vencidas', icon: LifeBuoy, color: '#ef4444' },
 ]
 
+const THEME_OPTIONS: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Claro', icon: Sun },
+  { value: 'dark', label: 'Oscuro', icon: Moon },
+  { value: 'system', label: 'Sistema', icon: Monitor },
+]
+
 export function MorePage() {
   const { signOut } = useAuth()
   const { data: profile } = useProfile()
   const { data: areas = [] } = useAreas()
   const updateProfile = useUpdate<Profile>('profiles', [qk.profile])
   const updateArea = useUpdateArea()
+  const { choice, setChoice } = useTheme()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState<'export' | 'import' | null>(null)
@@ -128,6 +139,26 @@ export function MorePage() {
           </span>
         </span>
       </button>
+
+      {/* Apariencia */}
+      <section className="mb-4">
+        <h3 className="mb-2 text-sm font-semibold text-muted">Apariencia</h3>
+        <div className="flex gap-1 rounded-xl bg-surface p-1">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => setChoice(o.value)}
+              className={clsx(
+                'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium transition',
+                choice === o.value ? 'bg-brand text-white' : 'text-muted active:bg-surface-2',
+              )}
+            >
+              <o.icon className="h-4 w-4" />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-3">
         {tiles.map((t) => (

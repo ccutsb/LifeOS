@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { Sheet } from '@/components/ui/Sheet'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/stores/toast'
 import { errorMessage } from '@/lib/errors'
@@ -110,7 +111,7 @@ export function HabitFormSheet({ habit, onClose }: { habit?: Habit; onClose: () 
         <Field label="Recompensa" hint="Algo pequeño e inmediato al cumplir">
           <Input value={reward} onChange={(e) => setReward(e.target.value)} placeholder="Un capítulo de mi serie" />
         </Field>
-        <Field label="Recordatorio">
+        <Field label="Recordatorio" hint="Te avisaremos a esta hora los días del hábito">
           <Input type="time" value={reminder} onChange={(e) => setReminder(e.target.value)} />
         </Field>
 

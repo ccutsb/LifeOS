@@ -52,6 +52,8 @@ export const router = createBrowserRouter([
       { path: 'finanzas', element: <FinancePage /> },
       { path: 'calendario', element: <CalendarPage /> },
       { path: 'revision', element: <ReviewPage /> },
+      // Ruta antigua de "objetivos de vida": ahora viven dentro de cada área
+      { path: 'objetivos', element: <Navigate to="/areas" replace /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

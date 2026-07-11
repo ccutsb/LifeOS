@@ -1,12 +1,24 @@
 <!doctype html>
-<html lang="es-CL" class="dark">
+<html lang="es-CL">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no"
     />
-    <meta name="theme-color" content="#0b0f17" />
+    <meta name="theme-color" content="#F5F7FE" />
+    <!-- Aplica el tema antes de pintar para evitar parpadeo (FOUC). Claro por defecto. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('lifeos-theme') || 'light'
+          var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', dark ? '#0E1124' : '#F5F7FE')
+        } catch (e) {}
+      })()
+    </script>
     <meta name="description" content="Tu sistema de vida: universidad, hábitos, finanzas y enfoque." />
     <title>LifeOS</title>
 

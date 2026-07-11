@@ -14,10 +14,15 @@
 1. En el Dashboard de Supabase → **SQL Editor** → **New query**.
 2. Pega el contenido de [`supabase/schema.sql`](../supabase/schema.sql) y pulsa **Run**.
 3. **LifeOS 2.0:** pega y corre también [`supabase/migration-v2.sql`](../supabase/migration-v2.sql)
-   (áreas de vida, objetivos, rutinas y recurrencia; crea tus 8 áreas por defecto).
-4. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `life_areas`, …).
+   (áreas de vida, objetivos, rutinas y recurrencia; crea tus 8 áreas por defecto y
+   migra los antiguos "objetivos de vida" al nuevo sistema).
+4. Verifica en **Table Editor** que aparezcan las tablas (`profiles`, `courses`, `tasks`, `life_areas`, `accounts`, …).
 
-> Ambos archivos son idempotentes: puedes correrlos de nuevo sin romper nada.
+> Todos los archivos SQL son idempotentes: puedes correrlos de nuevo sin romper nada.
+> Si tu base es de una versión anterior, las migraciones mínimas también existen por separado:
+> [`supabase/wallets.sql`](../supabase/wallets.sql) (billeteras/cuentas),
+> [`supabase/points.sql`](../supabase/points.sql) (puntos por triggers, server-authoritative) y
+> [`supabase/transfers.sql`](../supabase/transfers.sql) (transferencias entre cuentas).
 
 ## 3. Configurar Auth
 
@@ -57,6 +62,11 @@
 ## 7. Notificaciones push reales en iPhone (Fase 4)
 
 Requisitos: iOS **16.4+** y la PWA **instalada** en pantalla de inicio.
+
+> **Antes de configurar el push real**, ya puedes activar las notificaciones del día: abre la PWA
+> instalada → campana de **Avisos** → **Activar** y luego **Probar** (te llegará una notificación de
+> prueba al instante). Estos avisos locales funcionan estando la app abierta. Para que lleguen con la
+> app **cerrada**, completa los pasos a–e de abajo.
 
 **a) Genera las claves VAPID** (una sola vez):
 ```bash

@@ -76,6 +76,7 @@ export const useFocusStore = create<FocusState>((set, get) => {
     if (phase === 'focus') {
       try {
         const user_id = await getUserId()
+        // Los puntos (+15) los otorga la BD al insertar la sesión completada (trigger).
         await supabase.from('focus_sessions').insert({
           user_id,
           task_id: taskId,
@@ -85,11 +86,8 @@ export const useFocusStore = create<FocusState>((set, get) => {
           completed: true,
           ended_at: new Date().toISOString(),
         })
-        await supabase
-          .from('points_ledger')
-          .insert({ user_id, delta: POINTS_PER_POMODORO, reason: 'Pomodoro completado', source: 'focus' })
         queryClient.invalidateQueries({ queryKey: qk.profile })
-        queryClient.invalidateQueries({ queryKey: ['focus_sessions'] })
+        queryClient.invalidateQueries({ queryKey: qk.focusSessions })
       } catch {
         /* offline: se omite el guardado */
       }

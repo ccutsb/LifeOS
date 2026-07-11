@@ -21,6 +21,7 @@ function makeTask(partial: Partial<Task>): Task {
     evaluation_id: null,
     area_id: null,
     objective_id: null,
+    goal_id: null,
     title: `Tarea ${seq}`,
     description: null,
     due_at: null,

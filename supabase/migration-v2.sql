@@ -212,4 +212,77 @@ update public.tasks t
    and a.user_id = t.user_id
    and a.kind = 'university';
 
+-- ╔══════════════════════════════════════════════════════════════════════╗
+-- ║  10. MIGRAR "OBJETIVOS DE VIDA" ANTIGUOS (life_goals -> objectives)    ║
+-- ║  Si usaste la versión anterior, tus objetivos se conservan: pasan al   ║
+-- ║  nuevo sistema conectados a su área de vida equivalente.               ║
+-- ╚══════════════════════════════════════════════════════════════════════╝
+do $$
+begin
+  if to_regclass('public.life_goals') is null then
+    return; -- nunca existió la versión antigua: nada que migrar
+  end if;
+
+  -- 10a. Copia cada life_goal como objective (mismo id → los vínculos sobreviven)
+  insert into public.objectives (id, user_id, area_id, title, description, target_date, status, created_at)
+  select
+    g.id,
+    g.user_id,
+    (select a.id from public.life_areas a
+      where a.user_id = g.user_id
+        and a.kind = case g.area
+              when 'academico' then 'university'
+              when 'salud'     then 'health'
+              when 'finanzas'  then 'finance'
+              when 'carrera'   then 'work'
+              when 'personal'  then 'growth'
+              when 'social'    then 'leisure'
+              else 'growth'
+            end
+      limit 1),
+    g.title,
+    g.motivation,
+    g.target_date,
+    case g.status when 'archived' then 'dropped' else g.status end,
+    g.created_at
+  from public.life_goals g
+  where not exists (select 1 from public.objectives o where o.id = g.id);
+
+  -- 10b. Las tareas que apuntaban al objetivo antiguo pasan al nuevo
+  update public.tasks t
+     set objective_id = t.goal_id
+   where t.goal_id is not null
+     and t.objective_id is null
+     and exists (select 1 from public.objectives o where o.id = t.goal_id);
+end $$;
+
+-- ╔══════════════════════════════════════════════════════════════════════╗
+-- ║  11. PUNTOS PARA TAREAS RECURRENTES (server-authoritative)             ║
+-- ║  points.sql premia la transición a status='done', pero las recurrentes ║
+-- ║  nunca pasan por ahí: renacen actualizando last_completed_at. Este     ║
+-- ║  trigger cubre ese caso con la misma filosofía anti doble-conteo.      ║
+-- ╚══════════════════════════════════════════════════════════════════════╝
+create or replace function public.points_on_task_recurring()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.recurrence is null then
+    return new;
+  end if;
+  if new.last_completed_at is not null
+     and (old.last_completed_at is null or new.last_completed_at > old.last_completed_at) then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, 10, 'Tarea recurrente cumplida', 'task', new.id);
+  elsif new.last_completed_at is null and old.last_completed_at is not null then
+    insert into public.points_ledger (user_id, delta, reason, source, source_id)
+    values (new.user_id, -10, 'Recurrente desmarcada', 'task', new.id);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_points_task_recurring on public.tasks;
+create trigger trg_points_task_recurring
+  after update of last_completed_at on public.tasks
+  for each row execute function public.points_on_task_recurring();
+
 -- ── Fin de la migración v2 ───────────────────────────────────────────────

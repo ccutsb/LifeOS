@@ -42,10 +42,10 @@ export function FocusPage() {
   const ss = String(secondsLeft % 60).padStart(2, '0')
   const isFresh = !isRunning && secondsLeft === total
 
-  // Anillo SVG
+  // Anillo SVG (colores por token, se adaptan al tema)
   const R = 130
   const C = 2 * Math.PI * R
-  const ringColor = phase === 'focus' ? '#6366f1' : '#22c55e'
+  const ringColor = phase === 'focus' ? 'rgb(var(--c-brand))' : 'rgb(var(--c-success))'
 
   const currentTaskTitle = taskId ? tasks.find((t) => t.id === taskId)?.title : undefined
 
@@ -93,7 +93,7 @@ export function FocusPage() {
       {/* Anillo / cuenta regresiva */}
       <div className="relative mx-auto my-2 grid h-72 w-72 place-items-center">
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 300 300">
-          <circle cx="150" cy="150" r={R} fill="none" stroke="#1a2234" strokeWidth="16" />
+          <circle cx="150" cy="150" r={R} fill="none" stroke="rgb(var(--c-surface-2))" strokeWidth="16" />
           <circle
             cx="150"
             cy="150"
